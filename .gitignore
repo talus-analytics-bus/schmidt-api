@@ -7,3 +7,6 @@
 # Pipfile
 Pipfile.lock
 Pipfile
+
+# Shell scripts
+sh
