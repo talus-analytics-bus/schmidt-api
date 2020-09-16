@@ -10,3 +10,6 @@ Pipfile
 
 # Shell scripts
 sh
+
+# db config file
+config.ini
