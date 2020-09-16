@@ -12,9 +12,7 @@ import pytz
 from ..db_models import db
 from ..db import api
 from .. import schema
-from ..utils import format_response, get_str_from_datetime
-
-strf_str = '%Y-%m-%d %H:%M:%S %Z'
+from ..utils import format_response
 
 # Initialize metric catalog or specifics endpoint
 @api.route("/test", methods=["GET"])
@@ -31,4 +29,4 @@ class Test(Resource):
     @db_session
     @format_response
     def get(self):
-        return {data: "Test successful", success: True}
+        return {'text': "Test successful"}
