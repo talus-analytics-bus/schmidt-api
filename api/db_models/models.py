@@ -93,6 +93,7 @@ class File(db.Entity):
     source_thumbnail_permalink = Optional(str)
     s3_thumbnail_permalink = Optional(str, nullable=True)
     num_bytes = Optional(int)
+    scraped_text = Optional(str, nullable=True)
 
     # Relationships
     items = Set('Item', table='files_to_items')

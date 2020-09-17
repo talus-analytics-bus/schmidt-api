@@ -3,12 +3,14 @@
 import os
 import pytz
 import time
+from io import BytesIO
 from os import sys
 from datetime import date, datetime, timedelta
 from collections import defaultdict
 
 # 3rd party modules
 import boto3
+import pdfplumber
 from pony.orm import db_session, commit, get, select, delete, StrArray
 from pony.orm.core import CacheIndexError, ObjectNotFound
 import pprint
@@ -464,17 +466,20 @@ class SchmidtPlugin(IngestPlugin):
                             'file_key': file['id'],
                             'file_url': file['url'],
                             'field': 's3_permalink',
+                            'scrape': True,
                         },
                         {
                             'file_key': file['id'] + '_thumb',
                             'file_url': file['thumbnails']['large']['url'],
                             'field': 's3_thumbnail_permalink',
+                            'scrape': False,
                         }
                     ]
 
                     for file_to_check in files_to_check:
                         file_key = file_to_check['file_key']
                         file_url = file_to_check['file_url']
+                        scrape = file_to_check['scrape']
                         file_already_in_s3 = file_key in self.s3_bucket_keys
 
                         if not file_already_in_s3:
@@ -487,6 +492,22 @@ class SchmidtPlugin(IngestPlugin):
                             )
 
                             if file is not None:
+
+                                # scrape PDF text unless file is not a PDF or
+                                # unless it is not flagged as `scrape`
+                                if scrape:
+                                    try:
+                                        pdf = pdfplumber.open(BytesIO(file))
+                                        scraped_text = ''
+                                        first_page = pdf.pages[0]
+                                        for curpage in pdf.pages:
+                                            page_scraped_text = curpage.extract_text()
+                                            if page_scraped_text is not None:
+                                                scraped_text += page_scraped_text
+                                        upsert_set['scraped_text'] = scraped_text
+                                    except Exception as e:
+                                        print(
+                                            'File does not appear to be PDF, skipping scraping: ' + file['filename'])
 
                                 # add file to s3
                                 response = s3.put_object(
