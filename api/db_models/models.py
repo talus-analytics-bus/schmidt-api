@@ -20,7 +20,7 @@ class Item(db.Entity):
     date = Optional(date, nullable=True)
     type_of_record = Optional(str)
     key_topics = Optional(StrArray)
-    title = Required(str)
+    title = Optional(str, sql_default="'Untitled'", nullable=True)
     description = Optional(str)
     link = Optional(str)
     internal_research_note = Optional(str)
