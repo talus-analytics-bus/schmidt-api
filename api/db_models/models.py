@@ -13,6 +13,8 @@ from . import db
 class Item(db.Entity):
     """Reports, etc.."""
     _table_ = 'item'
+
+    # Attributes
     id = PrimaryKey(int, auto=True)
     date = Optional(date)
     type_of_record = Optional(str)
@@ -25,10 +27,18 @@ class Item(db.Entity):
     internal_date_of_initial_entry = Optional(datetime)
     final_review = Required(bool)
 
+    # Relationships
+    authors = Set('Author', table='authors_to_items')
+    funders = Set('Funder', table='funders_to_items')
+    events = Set('Event', table='events_to_items')
+    files = Set('File', table='files_to_items')
+
 
 class Author(db.Entity):
     """Authoring organizations who create items."""
     _table_ = 'author'
+
+    # Attributes
     id = PrimaryKey(int, auto=True)
     type_of_authoring_organization = Optional(str)
     authoring_organization = Required(str)
@@ -37,6 +47,9 @@ class Author(db.Entity):
     if_national_country_of_authoring_org = Optional(str)
     authoring_organization_has_governance_authority = Optional(bool)
 
+    # Relationships
+    items = Set('Item', table='authors_to_items')
+
 
 class Funder(db.Entity):
     """Funders who provide financial support for authoring organizations
@@ -44,21 +57,39 @@ class Funder(db.Entity):
 
     """
     _table_ = 'funder'
+
+    # Attributes
     id = PrimaryKey(int, auto=True)
     name = Required(str)
+
+    # Relationships
+    items = Set('Item', table='funders_to_items')
 
 
 class Event(db.Entity):
     """Events (outbreaks) that may be tagged on items that discuss them."""
     _table_ = 'event'
+
+    # Attributes
     id = PrimaryKey(int, auto=True)
+    master_id = Required(str)
     name = Required(str)
+
+    # Relationships
+    items = Set('Item', table='events_to_items')
 
 
 class File(db.Entity):
     """Files (usually PDFs) with the content of items."""
     _table_ = 'file'
+
+    # Attributes
     id = PrimaryKey(int, auto=True)
     permalink = Required(str)
     filename = Required(str)
     extension = Required(str)
+    thumbnail_permalink = Optional(str)
+    num_bytes = Optional(int)
+
+    # Relationships
+    items = Set('Item', table='files_to_items')
