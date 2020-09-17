@@ -92,19 +92,34 @@ def get_secret(
             )
             return decoded_binary_secret
 
-# Config class, instantiated in api/setup.py..
+#
 
 
 class Config:
+    """Config class, instantiated in api/setup.py.
+
+    Parameters
+    ----------
+    config_file : type
+        Description of parameter `config_file`.
+
+    Attributes
+    ----------
+    db : type
+        Description of attribute `db`.
+    engine : type
+        Description of attribute `engine`.
+    debug : type
+        Description of attribute `debug`.
+
+    """
+
     def __init__(self, config_file):
 
         # Create a new config parser and read the config file passed to Config
         # instance.
         cfg = ConfigParser()
         cfg.read(config_file)
-
-        # # Define command line  arguments.
-        # self.clargs = self.collect_arguments()
 
         no_config = (len(cfg) == 1 and len(cfg['DEFAULT']) == 0)
         self.db = dict()
@@ -118,8 +133,7 @@ class Config:
             self.db['host'] = secret['host']
             self.db['password'] = secret['password']
             self.db['database'] = 'schmidt'
-        print('self.db')
-        print(self.db)
+
         # Define database engine based on db connection parameters.
         self.engine = create_engine(f"postgresql+psycopg2://{self.db['username']}:{self.db['password']}@{self.db['host']}:5432/{self.db['database']}",
                                     use_batch_mode=True)
