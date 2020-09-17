@@ -85,10 +85,13 @@ class File(db.Entity):
 
     # Attributes
     id = PrimaryKey(int, auto=True)
-    permalink = Required(str)
+    source_permalink = Required(str)
+    s3_permalink = Optional(str, nullable=True)
     filename = Required(str)
-    extension = Required(str)
-    thumbnail_permalink = Optional(str)
+    s3_filename = Required(str)
+    mime_type = Required(str)
+    source_thumbnail_permalink = Optional(str)
+    s3_thumbnail_permalink = Optional(str, nullable=True)
     num_bytes = Optional(int)
 
     # Relationships

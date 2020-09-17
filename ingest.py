@@ -24,6 +24,7 @@ if __name__ == "__main__":
     client.update_authors(db)
     client.update_funders(db)
     client.update_events(db)
+    client.update_files(db)
 
     # exit
     sys.exit(0)

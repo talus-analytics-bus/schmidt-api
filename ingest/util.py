@@ -8,12 +8,17 @@ import json
 from collections import defaultdict
 
 # 3rd party modules
+import boto3
 from pony.orm import db_session, commit, get, select
 from pony.orm.core import EntityMeta
 import pprint
 
 # constants
 pp = pprint.PrettyPrinter(indent=4)
+
+# define S3 client used for adding / checking for files in the S3
+# storage bucket
+S3_BUCKET_NAME = 'schmidt-storage'
 
 # define colors for printing colorized terminal text
 
@@ -372,6 +377,8 @@ def get_s3_bucket_keys(s3_bucket_name: str):
         Description of returned object.
 
     """
+    s3 = boto3.client('s3')
+
     nextContinuationToken = None
     keys = list()
     more_keys = True
@@ -402,11 +409,14 @@ def get_s3_bucket_keys(s3_bucket_name: str):
 
         # for each response object, extract the key and add it to the
         # full list
-        for d in response['Contents']:
-            keys.append(d['Key'])
+        if 'KeyCount' in response and response['KeyCount'] == 0:
+            return list()
+        else:
+            for d in response['Contents']:
+                keys.append(d['Key'])
 
-        # are there more keys to pull from the bucket?
-        more_keys = nextContinuationToken is not None
+            # are there more keys to pull from the bucket?
+            more_keys = nextContinuationToken is not None
 
     # return master list of all bucket keys
     return keys

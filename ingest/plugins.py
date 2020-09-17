@@ -16,15 +16,9 @@ import pprint
 # local modules
 from .sources import AirtableSource
 from .util import upsert, download_file, bcolors, nyt_caseload_csv_to_dict, \
-    jhu_caseload_csv_to_dict, find_all, iterable
+    jhu_caseload_csv_to_dict, find_all, iterable, get_s3_bucket_keys, \
+    S3_BUCKET_NAME
 import pandas as pd
-
-
-# constants
-# define S3 client used for adding / checking for files in the S3
-# storage bucket
-s3 = boto3.client('s3')
-S3_BUCKET_NAME = 'schmidt-storage'
 
 # pretty printing: for printing JSON objects legibly
 pp = pprint.PrettyPrinter(indent=4)
@@ -407,6 +401,125 @@ class SchmidtPlugin(IngestPlugin):
                 item.events = all_upserted
 
         print('Events updated.')
+        return self
+
+    @db_session
+    def update_files(self, db):
+        """Update files based on the items data and write to database,
+        linking to items as appropriate.
+
+        Parameters
+        ----------
+        db : type
+            Description of parameter `db`.
+
+        Returns
+        -------
+        type
+            Description of returned object.
+
+        """
+        # throw error if items data not loaded
+        if not hasattr(self, 'item'):
+            print('[FATAL ERROR] Please `update_items` before other entities.')
+            sys.exit(1)
+
+        # update authors
+        print('\nUpdating files...')
+
+        # get all s3 bucket keys
+        self.s3_bucket_keys = get_s3_bucket_keys(s3_bucket_name=S3_BUCKET_NAME)
+
+        # define s3 client
+        s3 = boto3.client('s3')
+
+        # for each item
+        for d in self.item.to_dict(orient='records'):
+            file_defined = d['PDF Attachments'] != ''
+            item = db.Item[int(d['ID (automatically assigned)'])]
+            item_defined = item is not None
+            if not file_defined or not item_defined:
+                continue
+            else:
+                file_list = d['PDF Attachments']
+                if not iterable(file_list):
+                    file_list = list(set([file_list]))
+                all_upserted = list()
+                for file in file_list:
+                    upsert_get = {
+                        's3_filename': file['id'],
+                    }
+                    upsert_set = {
+                        'source_permalink': file['url'],
+                        'filename': file['filename'],
+                        's3_permalink': None,
+                        'mime_type': file['type'],
+                        'source_thumbnail_permalink': file['thumbnails']['large']['url'],
+                        's3_thumbnail_permalink': None,
+                        'num_bytes': file['size'],
+                    }
+
+                    files_to_check = [
+                        {
+                            'file_key': file['id'],
+                            'file_url': file['url'],
+                            'field': 's3_permalink',
+                        },
+                        {
+                            'file_key': file['id'] + '_thumb',
+                            'file_url': file['thumbnails']['large']['url'],
+                            'field': 's3_thumbnail_permalink',
+                        }
+                    ]
+
+                    for file_to_check in files_to_check:
+                        file_key = file_to_check['file_key']
+                        file_url = file_to_check['file_url']
+                        file_already_in_s3 = file_key in self.s3_bucket_keys
+
+                        if not file_already_in_s3:
+                            # add file to S3 if not already there
+                            file = download_file(
+                                file_url,
+                                file_key,
+                                None,
+                                as_object=True
+                            )
+
+                            if file is not None:
+
+                                # add file to s3
+                                response = s3.put_object(
+                                    Body=file,
+                                    Bucket=S3_BUCKET_NAME,
+                                    Key=file_key,
+                                )
+
+                                # set to public
+                                response2 = s3.put_object_acl(
+                                    ACL='public-read',
+                                    Bucket=S3_BUCKET_NAME,
+                                    Key=file_key,
+                                )
+
+                                field = file_to_check['field']
+                                upsert_set[field] = 'https://schmidt-storage.s3-us-west-1.amazonaws.com/' + file_key
+                                print('Added file to s3: ' + file_key)
+
+                    # upsert files
+                    action, upserted = upsert(
+                        db.File,
+                        get=upsert_get,
+                        set=upsert_set
+                    )
+
+                    # add to list of files for item
+                    all_upserted.append(upserted)
+
+                # link item to files
+                item.files = all_upserted
+
+        print('Files updated.')
         return self
 
     def load_metadata(self):
