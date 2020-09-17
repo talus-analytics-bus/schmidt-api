@@ -16,7 +16,7 @@ import pprint
 # local modules
 from .sources import AirtableSource
 from .util import upsert, download_file, bcolors, nyt_caseload_csv_to_dict, \
-    jhu_caseload_csv_to_dict, find_all
+    jhu_caseload_csv_to_dict, find_all, iterable
 import pandas as pd
 
 
@@ -274,9 +274,6 @@ class SchmidtPlugin(IngestPlugin):
                         if key in linked_fields:
                             value = ''
                             for source_id in d[name]:
-                                # record = self.client.ws.get(
-                                #     source_id)
-                                # record = self.client.ws.get(source_id)
                                 record = next(
                                     i for i in self.lookup_country if i['source_id'] == source_id)
                                 value = record[linked_fields[key]]
@@ -296,6 +293,62 @@ class SchmidtPlugin(IngestPlugin):
                 item.authors = [upserted]
 
         print('Authors updated.')
+        return self
+
+    @db_session
+    def update_funders(self, db):
+        """Update funders based on the items data and write to database,
+        linking to items as appropriate.
+
+        Parameters
+        ----------
+        db : type
+            Description of parameter `db`.
+
+        Returns
+        -------
+        type
+            Description of returned object.
+
+        """
+        # throw error if items data not loaded
+        if not hasattr(self, 'item'):
+            print('[FATAL ERROR] Please `update_items` before other entities.')
+            sys.exit(1)
+
+        # update authors
+        print('\nUpdating funders...')
+
+        # for each item
+        for d in self.item.to_dict(orient='records'):
+            funder_defined = d['Funder'] != ''
+            item = db.Item[int(d['ID (automatically assigned)'])]
+            item_defined = item is not None
+            if not funder_defined or not item_defined:
+                continue
+            else:
+                funder_list = d['Funder']
+                if not iterable(funder_list):
+                    funder_list = list(set([funder_list]))
+                all_upserted = list()
+                for funder in funder_list:
+                    upsert_get = {
+                        'name': funder
+                    }
+                    upsert_set = dict()
+
+                    # upsert implied author
+                    action, upserted = upsert(
+                        db.Funder,
+                        get=upsert_get,
+                        set=upsert_set
+                    )
+                    all_upserted.append(upserted)
+
+                # link item to author
+                item.funders = all_upserted
+
+        print('Funders updated.')
         return self
 
     def load_metadata(self):

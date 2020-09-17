@@ -22,6 +22,7 @@ if __name__ == "__main__":
     client.update_metadata(db)
     client.update_items(db)
     client.update_authors(db)
+    client.update_funders(db)
 
     # exit
     sys.exit(0)
