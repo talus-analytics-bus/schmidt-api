@@ -93,3 +93,22 @@ class File(db.Entity):
 
     # Relationships
     items = Set('Item', table='files_to_items')
+
+
+class Metadata(db.Entity):
+    """Display names, definitions, etc. for fields."""
+    _table_ = "metadata"
+
+    # Attributes
+    field = Required(str)
+    order = Required(float)
+    display_name = Optional(str)
+    colgroup = Optional(str)
+    definition = Optional(str)
+    possible_values = Optional(str)
+    notes = Optional(str)
+    export = Required(bool)
+    entity_name = Required(str)
+    linked_entity_name = Required(str)
+    type = Required(str)
+    PrimaryKey(entity_name, linked_entity_name, field)
