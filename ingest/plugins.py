@@ -124,6 +124,7 @@ class SchmidtPlugin(IngestPlugin):
         for d in self.dd_all.to_dict(orient='records'):
             upsert_set = {
                 'order': d['Order'],
+                'source_name': d['Field'],
                 'display_name': d['Display name'],
                 'colgroup': d['Category'],
                 'definition': d['Definition'],
@@ -137,12 +138,79 @@ class SchmidtPlugin(IngestPlugin):
             action, upserted = upsert(
                 cls=db.Metadata,
                 get={
-                    'field': d['Field'],
+                    'field': d['Database field name'],
                     'entity_name': d['Entity name'],
                     'linked_entity_name': d['Database entity'],
                 },
                 set=upsert_set
             )
+        print('Metadata updated.')
+        return self
+
+    @db_session
+    def update_items(self, db):
+        """Get Items instance data from Airtable, parse into database records,
+        and write to database.
+
+        Parameters
+        ----------
+        db : type
+            Description of parameter `db`.
+
+        Returns
+        -------
+        type
+            Description of returned object.
+
+        """
+        print('\nUpdating items...')
+        self.item = self.client \
+            .worksheet(name='Schmidt dataset') \
+            .as_dataframe()
+
+        # get database fields for items to write
+        field_data = select(
+            i for i in db.Metadata
+            if i.entity_name == 'Item'
+        )
+
+        # parse items into instances to write to database
+        for d in self.item.to_dict(orient="records"):
+            get_keys = ('id')
+            upsert_get = dict()
+            upsert_set = dict()
+
+            for field_datum in field_data:
+                is_linked = field_datum.linked_entity_name != field_datum.entity_name
+                if is_linked:
+                    continue
+                else:
+                    key = field_datum.field
+                    name = field_datum.source_name
+                    if name in d:
+                        value = d[name]
+                        # parse dates
+                        if field_datum.type == 'date':
+                            if value != '':
+                                value = datetime.strptime(
+                                    value, '%Y-%M-%d').date()
+                            else:
+                                value = None
+                        elif field_datum.type == 'StrArray':
+                            if value == '':
+                                value = list()
+                        if key in get_keys:
+                            upsert_get[key] = value
+                        else:
+                            upsert_set[key] = value
+            action, upserted = upsert(
+                db.Item,
+                get=upsert_get,
+                set=upsert_set,
+            )
+
+        print('Items updated.')
+        return self
 
     def load_metadata(self):
         """Retrieve data dictionaries from data source and store in instance.

@@ -16,7 +16,8 @@ class Item(db.Entity):
 
     # Attributes
     id = PrimaryKey(int, auto=True)
-    date = Optional(date)
+    internal_date_of_initial_entry = Optional(date, nullable=True)
+    date = Optional(date, nullable=True)
     type_of_record = Optional(str)
     key_topics = Optional(StrArray)
     title = Required(str)
@@ -24,8 +25,7 @@ class Item(db.Entity):
     link = Optional(str)
     internal_research_note = Optional(str)
     ra_coder_initials = Optional(str)
-    internal_date_of_initial_entry = Optional(datetime)
-    final_review = Required(bool)
+    final_review = Required(bool, default=False)
 
     # Relationships
     authors = Set('Author', table='authors_to_items')
@@ -101,6 +101,7 @@ class Metadata(db.Entity):
 
     # Attributes
     field = Required(str)
+    source_name = Required(str)
     order = Required(float)
     display_name = Optional(str)
     colgroup = Optional(str)

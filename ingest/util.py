@@ -103,6 +103,11 @@ def upsert(cls, get: dict, set: dict = None, skip: list = []):
                 return False
             else:
                 return None
+        elif iterable(value):
+            if not iterable(x):
+                return x
+            else:
+                return "; ".join(x)
         else:
             return x
 
@@ -338,7 +343,7 @@ def iterable(obj):
     except Exception:
         return False
     else:
-        return True
+        return type(obj) != str
 
 
 def str_to_bool(x):

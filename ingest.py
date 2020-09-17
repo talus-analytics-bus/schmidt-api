@@ -20,6 +20,7 @@ if __name__ == "__main__":
 
     # load and process metadata from data dictionary(ies)
     client.update_metadata(db)
+    client.update_items(db)
 
     # exit
     sys.exit(0)
