@@ -60,6 +60,33 @@ class Items(Resource):
         return data
 
 
+@api.route("/get/file", methods=["GET"])
+class File(Resource):
+    # setup parser
+    parser = api.parser()
+    parser.add_argument(
+        'id',
+        type=int,
+        required=False,
+        help="""Unique ID of file to fetch"""
+    )
+    parser.add_argument(
+        'get_thumb',
+        type=bool,
+        required=False,
+        help="""True if thumbnail should be returned, False if entire file"""
+    )
+
+    @api.doc(parser=parser)
+    @db_session
+    def get(self):
+        data = schema.get_file(
+            id=int(request.args.get('id', 1)),
+            get_thumb=request.args.get('get_thumb', "false") == "true",
+        )
+        return data
+
+
 @api.route("/test", methods=["GET"])
 class Test(Resource):
     parser = api.parser()
