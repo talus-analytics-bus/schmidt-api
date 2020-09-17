@@ -212,6 +212,92 @@ class SchmidtPlugin(IngestPlugin):
         print('Items updated.')
         return self
 
+    @db_session
+    def update_authors(self, db):
+        """Update authors based on the items data and write to database,
+        linking to items as appropriate.
+
+        Parameters
+        ----------
+        db : type
+            Description of parameter `db`.
+
+        Returns
+        -------
+        type
+            Description of returned object.
+
+        """
+        # throw error if items data not loaded
+        if not hasattr(self, 'item'):
+            print('[FATAL ERROR] Please `update_items` before other entities.')
+            sys.exit(1)
+
+        # update authors
+        print('\nUpdating authors...')
+
+        # get country information
+        self.lookup_country = self.client \
+            .worksheet(name='Lookup: Country (ISO)') \
+            .as_dataframe() \
+            .to_dict(orient='records')
+
+        # get author metadata
+        field_data = select(
+            i for i in db.Metadata
+            if i.linked_entity_name == 'Author'
+            and i.field != 'authoring_organization'  # get field
+        )
+
+        # define linked entity fields and the data field on the linked entity
+        # they should pull from
+        linked_fields = {
+            'if_national_country_of_authoring_org': 'Country name'}
+
+        # for each item
+        for d in self.item.to_dict(orient='records'):
+            author_defined = d['Authoring Organization'] != ''
+            item = db.Item[int(d['ID (automatically assigned)'])]
+            item_defined = item is not None
+            if not author_defined or not item_defined:
+                continue
+            else:
+                upsert_get = {
+                    'authoring_organization': d['Authoring Organization']
+                }
+                upsert_set = dict()
+                for field_datum in field_data:
+                    name = field_datum.source_name
+                    key = field_datum.field
+                    value = None
+                    if name in d:
+                        if key in linked_fields:
+                            value = ''
+                            for source_id in d[name]:
+                                # record = self.client.ws.get(
+                                #     source_id)
+                                # record = self.client.ws.get(source_id)
+                                record = next(
+                                    i for i in self.lookup_country if i['source_id'] == source_id)
+                                value = record[linked_fields[key]]
+                            pass
+                        else:
+                            value = d[name]
+                    upsert_set[key] = value
+
+                # upsert implied author
+                action, upserted = upsert(
+                    db.Author,
+                    get=upsert_get,
+                    set=upsert_set
+                )
+
+                # link item to author
+                item.authors = [upserted]
+
+        print('Authors updated.')
+        return self
+
     def load_metadata(self):
         """Retrieve data dictionaries from data source and store in instance.
 
