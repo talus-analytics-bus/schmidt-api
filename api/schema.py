@@ -6,6 +6,7 @@
 import functools
 import pytz
 import re
+import math
 from datetime import datetime, timedelta, date
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
@@ -25,19 +26,35 @@ pp = pprint.PrettyPrinter(indent=4)
 
 @db_session
 def get_items(
-    page=1,
-    pagesize=1000000,
+    page,
+    pagesize,
 ):
+    # get all items
     q = select(
         i for i in db.Item
     )
+
+    # apply filters
+    # TODO
+
+    # apply text search with relevance scoring
+    # TODO
+
+    # apply ordering
+    # TODO
+
+    # get total num items, pages, etc. for response
     total = count(q)
     q_page = q.page(page, pagesize=pagesize)[:][:]
+    num_pages = math.ceil(total / pagesize)
+
+    # convert to dict for response
     only = ('id', 'title', 'description')
     data = [d.to_dict(only=only) for d in q_page]
     return {
         'data': data,
         'page': page,
+        'num_pages': num_pages,
         'pagesize': pagesize,
         'total': total,
         'num': len(data)

@@ -15,21 +15,48 @@ from .. import schema
 from ..utils import format_response
 
 
+def add_pagination_args(parser):
+    """Add pagination arguments to the provided `parser`.
+
+    Parameters
+    ----------
+    parser : type
+        Description of parameter `parser`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+    parser.add_argument(
+        'page',
+        type=int,
+        required=False,
+        help="""Page number"""
+    )
+    parser.add_argument(
+        'pagesize',
+        type=int,
+        required=False,
+        help="""Page size"""
+    )
+
+
 @api.route("/get/items", methods=["GET"])
 class Items(Resource):
+    # setup parser with pagination
     parser = api.parser()
-    parser.add_argument(
-        'argument_name',
-        type=str,
-        required=False,
-        help="""Description of argument"""
-    )
+    add_pagination_args(parser)
 
     @api.doc(parser=parser)
     @db_session
     @format_response
     def get(self):
-        data = schema.get_items()
+        data = schema.get_items(
+            page=int(request.args.get('page', 1)),
+            pagesize=int(request.args.get('pagesize', 10000000))
+        )
         return data
 
 
