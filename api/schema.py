@@ -49,8 +49,14 @@ def get_items(
     num_pages = math.ceil(total / pagesize)
 
     # convert to dict for response
-    only = ('id', 'title', 'description')
-    data = [d.to_dict(only=only) for d in q_page]
+    only = ('id', 'title', 'key_topics')
+    data = [
+        d.to_dict(
+            only=only,
+            # with_collections=True,
+            # related_objects=True,
+        ) for d in q_page
+    ]
     return {
         'data': data,
         'page': page,
@@ -59,4 +65,3 @@ def get_items(
         'total': total,
         'num': len(data)
     }
-# TODO functions
