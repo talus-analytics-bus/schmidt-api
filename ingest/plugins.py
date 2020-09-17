@@ -297,7 +297,7 @@ class SchmidtPlugin(IngestPlugin):
 
     @db_session
     def update_funders(self, db):
-        """Update funders based on the items data and write to database,
+        """Update events based on the items data and write to database,
         linking to items as appropriate.
 
         Parameters
@@ -349,6 +349,64 @@ class SchmidtPlugin(IngestPlugin):
                 item.funders = all_upserted
 
         print('Funders updated.')
+        return self
+
+    @db_session
+    def update_events(self, db):
+        """Update events based on the items data and write to database,
+        linking to items as appropriate.
+
+        Parameters
+        ----------
+        db : type
+            Description of parameter `db`.
+
+        Returns
+        -------
+        type
+            Description of returned object.
+
+        """
+        # throw error if items data not loaded
+        if not hasattr(self, 'item'):
+            print('[FATAL ERROR] Please `update_items` before other entities.')
+            sys.exit(1)
+
+        # update authors
+        print('\nUpdating events...')
+
+        # for each item
+        for d in self.item.to_dict(orient='records'):
+            event_defined = d['Event linkage'] != ''
+            item = db.Item[int(d['ID (automatically assigned)'])]
+            item_defined = item is not None
+            if not event_defined or not item_defined:
+                continue
+            else:
+                event_list = d['Event linkage']
+                if not iterable(event_list):
+                    event_list = list(set([event_list]))
+                all_upserted = list()
+                for event in event_list:
+                    upsert_get = {
+                        'name': event,
+                    }
+                    upsert_set = {
+                        'master_id': event
+                    }
+
+                    # upsert implied author
+                    action, upserted = upsert(
+                        db.Event,
+                        get=upsert_get,
+                        set=upsert_set
+                    )
+                    all_upserted.append(upserted)
+
+                # link item to author
+                item.events = all_upserted
+
+        print('Events updated.')
         return self
 
     def load_metadata(self):
