@@ -272,58 +272,116 @@ def get_matching_instances(items, search_text: str = None):
                 'match_type': 'exact-insensitive',  # TODO other types
                 'snip_length': 1000000,
                 'items_query': lambda x: lambda i: x in i.authors
+            },
+            'Funder': {
+                'fields': ['name'],
+                'match_type': 'exact-insensitive',
+                'snip_length': 1000000,
+                'items_query': lambda x: lambda i: x in i.funders
+            },
+            'Event': {
+                'fields': ['name'],
+                'match_type': 'exact-insensitive',
+                'snip_length': 1000000,
+                'items_query': lambda x: lambda i: x in i.events
+            },
+            'Key_Topic': {
+                'match_type': 'exact-insensitive',
+                'items_query': lambda x: lambda i: x in i.key_topics
             }
         }
         for class_name in to_check:
-            matching_instances[class_name] = list()
-            entity = getattr(db, class_name)
-            matches = list()
             match_type = to_check[class_name]['match_type']
-            if match_type not in ('exact-insensitive',):
-                raise NotImplementedError(
-                    'Unsupported match type: ' + match_type
-                )
-            else:
-
-                # for each field to check, collect the matching entities into
-                # a single list
-                fields = to_check[class_name]['fields']
-                cur_search_text = search_text.lower()
-                all_matches_tmp = set()
-                for field in fields:
-                    matches = select(
-                        i for i in entity
-                        if cur_search_text in getattr(i, field).lower()
+            # special case: key topics
+            if class_name != 'Key_Topic':
+                matching_instances[class_name] = list()
+                entity = getattr(db, class_name)
+                matches = list()
+                if match_type not in ('exact-insensitive',):
+                    raise NotImplementedError(
+                        'Unsupported match type: ' + match_type
                     )
-                    all_matches_tmp = all_matches_tmp | set(matches[:][:])
+                else:
 
-                # for each match in the list, count number of results (slow?)
-                # and get snippets showing why the instance matched
-                items_query = to_check[class_name]['items_query']
-                all_matches = list()
-                for match in all_matches_tmp:
-                    # get number of results for this match
-                    n_items = count(items.filter(items_query(match)))
-                    d = match.to_dict(only=(['id'] + fields))
-                    d['n_items'] = n_items
-
-                    # exact-insensitive snippet
-                    # TODO code for finding other types of snippets
-                    # TODO score by relevance
-                    snippets = dict()
-                    pattern = re.compile(cur_search_text, re.IGNORECASE)
-
-                    def repl(x):
-                        return '<highlight>' + x.group(0) + '</highlight>'
+                    # for each field to check, collect the matching entities into
+                    # a single list
+                    fields = to_check[class_name]['fields']
+                    cur_search_text = search_text.lower()
+                    all_matches_tmp = set()
                     for field in fields:
-                        snippets[field] = list()
-                        if search_text in getattr(match, field).lower():
-                            snippet = re.sub(
-                                pattern, repl, getattr(match, field))
-                            snippets[field].append(snippet)
-                    d['snippets'] = snippets
-                    all_matches.append(d)
-                matching_instances[class_name] = all_matches
+                        matches = select(
+                            i for i in entity
+                            if cur_search_text in getattr(i, field).lower()
+                        )
+                        all_matches_tmp = all_matches_tmp | set(matches[:][:])
+
+                    # for each match in the list, count number of results (slow?)
+                    # and get snippets showing why the instance matched
+                    items_query = to_check[class_name]['items_query']
+                    all_matches = list()
+                    for match in all_matches_tmp:
+                        # get number of results for this match
+                        n_items = count(items.filter(items_query(match)))
+                        d = match.to_dict(only=(['id'] + fields))
+                        d['n_items'] = n_items
+
+                        # exact-insensitive snippet
+                        # TODO code for finding other types of snippets
+                        # TODO score by relevance
+                        # TODO add snippet length constraints
+                        snippets = dict()
+                        pattern = re.compile(cur_search_text, re.IGNORECASE)
+
+                        def repl(x):
+                            return '<highlight>' + x.group(0) + '</highlight>'
+                        for field in fields:
+                            snippets[field] = list()
+                            if search_text in getattr(match, field).lower():
+                                snippet = re.sub(
+                                    pattern, repl, getattr(match, field))
+                                snippets[field].append(snippet)
+                        d['snippets'] = snippets
+                        all_matches.append(d)
+                    matching_instances[class_name] = all_matches
+            else:
+                # search through all used values for matches, then return
+                all_vals_nested = select(i.key_topics for i in items)[:][:]
+                all_vals = set([
+                    item for sublist in all_vals_nested for item in sublist])
+                if match_type not in ('exact-insensitive',):
+                    raise NotImplementedError(
+                        'Unsupported match type: ' + match_type
+                    )
+                else:
+                    all_matches_tmp = [
+                        i for i in all_vals if cur_search_text in i.lower()
+                    ]
+                    all_matches = list()
+                    items_query = to_check[class_name]['items_query']
+                    for match in all_matches_tmp:
+                        # get number of results for this match
+                        n_items = count(items.filter(items_query(match)))
+                        d = {'name': match}
+                        d['n_items'] = n_items
+
+                        # exact-insensitive snippet
+                        # TODO code for finding other types of snippets
+                        # TODO score by relevance
+                        # TODO add snippet length constraints
+                        snippets = dict()
+                        pattern = re.compile(cur_search_text, re.IGNORECASE)
+
+                        def repl(x):
+                            return '<highlight>' + x.group(0) + '</highlight>'
+                        for field in fields:
+                            snippets[field] = list()
+                            if search_text in match.lower():
+                                snippet = re.sub(
+                                    pattern, repl, match)
+                                snippets[field].append(snippet)
+                        d['snippets'] = snippets
+                        all_matches.append(d)
+                    matching_instances[class_name] = all_matches
 
         # if match, return matching text and relevance score
         # collate and return all entity instances that matched in order of
