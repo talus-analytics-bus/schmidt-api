@@ -159,25 +159,66 @@ def get_search(
     )
 
     # apply search text to items, if any
-    searched_items = apply_search_to_items(filtered_items, search_text)
+    searched_items = apply_search_to_items(
+        filtered_items, search_text, explain_results, preview
+    )
 
     # order items
-    ordered_items = apply_ordering_to_items(searched_items)
+    ordered_items = apply_ordering_to_items(
+        searched_items, ordering, search_text
+    )
+
+    # if applicable, get explanation for search results (snippets)
+    if not preview and explain_results:
+        search_items_with_snippets = list()
+        cur_search_text = search_text.lower()
+        data_snippets = list()
+
+        # TODO reuse code in search.py
+        pattern = re.compile(cur_search_text, re.IGNORECASE)
+
+        def repl(x):
+            return '<highlight>' + x.group(0) + '</highlight>'
+
+        for d in ordered_items:
+            snippets = dict()
+            at_least_one = False
+            # check basic string fields for exact-insensitive matches
+            # TODO tag fields, linked fields
+            fields_str = (
+                'type_of_record',
+                'title',
+                'description',
+            )
+
+            for field in fields_str:
+                if cur_search_text in getattr(d, field).lower():
+                    at_least_one = True
+                    snippets[field] = re.sub(
+                        pattern, repl, getattr(d, field))
+            data_snippets.append(
+                snippets if at_least_one else None
+            )
 
     # paginate items
-    items = ordered_items.page(page, pagesize=pagesize)
+    start = 1 + pagesize * (page - 1) - 1
+    end = pagesize * (page)
+    items = ordered_items[start:end]
+    # items = ordered_items.page(page, pagesize=pagesize)
 
     # if preview: return counts of items and matching instances
     data = None
     if preview:
-        n_items = count(ordered_items)
+        n_items = len(ordered_items)
+        # n_items = count(ordered_items)
         data = {
             'n_items': n_items,
             'other_instances': other_instances
         }
     else:
         # otherwise: return paginated items and details
-        total = count(ordered_items)
+        total = len(ordered_items)
+        # total = count(ordered_items)
         num_pages = math.ceil(total / pagesize)
         item_dicts = [
             d.to_dict(
@@ -196,6 +237,8 @@ def get_search(
             'num': len(item_dicts),
             'data': item_dicts,
         }
+        if explain_results:
+            data['data_snippets'] = data_snippets
 
     return data
 
@@ -279,7 +322,9 @@ def apply_filters_to_items(
 
 def apply_search_to_items(
     search_items,
-    search_text: str = None
+    search_text: str = None,
+    explain_results: bool = False,
+    preview: bool = True
 ):
     """Given a search string, applies exact-insensitive search to item
     metadata to find matches.
@@ -302,16 +347,17 @@ def apply_search_to_items(
 
     # apply search text
     if search_text is not None:
+        cur_search_text = search_text.lower()
         search_items = select(
             search_item
             for search_item in search_items
-            if search_text.lower() in search_item.search_text.lower()
+            if cur_search_text in search_item.search_text.lower()
         )
 
     return search_items
 
 
-def apply_ordering_to_items(items, ordering: list = []):
+def apply_ordering_to_items(items, ordering: list = [], search_text=None):
     """Given an ordering, returns the items in that order.
 
     Parameters
@@ -327,7 +373,29 @@ def apply_ordering_to_items(items, ordering: list = []):
         Description of returned object.
 
     """
-    # TODO implement
+    # TODO implement col ordering (relevance is done for now)
+    by_relevance = True
+    item_ids_by_relevance = list()
+    if by_relevance and search_text is not None:
+        cur_search_text = search_text.lower()
+        for d in items:
+            relevance = None
+            if cur_search_text in d.title.lower():
+                relevance = 3
+            elif cur_search_text in d.description.lower():
+                relevance = 2
+            else:
+                relevance = 0
+            item_ids_by_relevance.append(
+                (
+                    d.id,
+                    relevance
+                )
+            )
+        item_ids_by_relevance.sort(key=lambda x: x[1])
+        item_ids_by_relevance.reverse()
+        item_ids = [i[0] for i in item_ids_by_relevance]
+        items = [db.Item[i[0]] for i in item_ids_by_relevance]
     return items
 
 
