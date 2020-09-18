@@ -111,9 +111,7 @@ def get_matching_instances(
                 matching_instances[class_name] = all_matches
         else:
             # search through all used values for matches, then return
-            all_vals_nested = select(i.key_topics for i in items)[:][:]
-            all_vals = set([
-                item for sublist in all_vals_nested for item in sublist])
+            all_vals = select(i.key_topics.name for i in items)[:][:]
             if match_type not in ('exact-insensitive',):
                 raise NotImplementedError(
                     'Unsupported match type: ' + match_type

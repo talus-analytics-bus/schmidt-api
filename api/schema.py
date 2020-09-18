@@ -233,6 +233,13 @@ def apply_filters_to_items(
                 for i in items
                 for j in i.key_topics
                 if j.name in allowed_values
+                and j.field == field
+            )
+        else:
+            items = select(
+                i
+                for i in items
+                if getattr(i, field) in allowed_values
             )
 
     return items
@@ -304,7 +311,7 @@ def get_matching_instances(
             },
             'Key_Topic': {
                 'match_type': 'exact-insensitive',
-                'items_query': lambda x: lambda i: x in i.key_topics
+                'items_query': lambda x: lambda i: x in i.key_topics.name
             }
         }
         matching_instances = search.get_matching_instances(
