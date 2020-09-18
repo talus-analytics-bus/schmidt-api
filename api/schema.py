@@ -227,6 +227,8 @@ def apply_filters_to_items(
     tag_sets = ('key_topics',)
     for field in filters:
         allowed_values = filters[field]
+
+        # filters items by Tag attributes
         if field in tag_sets:
             items = select(
                 i
@@ -235,6 +237,26 @@ def apply_filters_to_items(
                 if j.name in allowed_values
                 and j.field == field
             )
+            # items = select(
+            #     i
+            #     for i in items
+            #     for j in i.key_topics
+            #     if j.name in allowed_values
+            #     and j.field == field
+            # )
+        # filter items by linked attributes
+        elif '.' in field:
+            field_arr = field.split('.')
+            entity_name = field_arr[0]
+            linked_field = field_arr[1]
+            entity = getattr(db, entity_name.capitalize())
+            items = select(
+                i
+                for i in items
+                for j in getattr(i, entity_name + 's')
+                if getattr(j, linked_field) in allowed_values
+            )
+
         else:
             items = select(
                 i
@@ -297,12 +319,12 @@ def get_matching_instances(
                 'snip_length': 1000000,
                 'items_query': lambda x: lambda i: x in i.authors
             },
-            'Funder': {
-                'fields': ['name'],
-                'match_type': 'exact-insensitive',
-                'snip_length': 1000000,
-                'items_query': lambda x: lambda i: x in i.funders
-            },
+            # 'Funder': {
+            #     'fields': ['name'],
+            #     'match_type': 'exact-insensitive',
+            #     'snip_length': 1000000,
+            #     'items_query': lambda x: lambda i: x in i.funders
+            # },
             'Event': {
                 'fields': ['name'],
                 'match_type': 'exact-insensitive',

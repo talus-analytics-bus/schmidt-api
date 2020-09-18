@@ -75,9 +75,18 @@ def get_matching_instances(
                 cur_search_text = search_text.lower()
                 all_matches_tmp = set()
                 for field in fields:
+
+                    # get pool of entities from filtered items
+                    pool = select(
+                        k
+                        for i in items
+                        for k in getattr(i, class_name.lower() + 's')
+                    )
+
+                    # get entities that match search string
                     matches = select(
-                        i for i in entity
-                        if cur_search_text in getattr(i, field).lower()
+                        m for m in pool
+                        if cur_search_text in getattr(m, field).lower()
                     )
                     all_matches_tmp = all_matches_tmp | set(matches[:][:])
 
