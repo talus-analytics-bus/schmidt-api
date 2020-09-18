@@ -15,12 +15,12 @@ from collections import defaultdict
 # Third party libraries
 import boto3
 import pprint
-from pony.orm import select, db_session, raw_sql, distinct, count
+from pony.orm import select, db_session, raw_sql, distinct, count, StrArray
 from flask import send_file
 
 # Local libraries
 from .db_models import db
-from .utils import passes_filters
+from . import search
 
 # pretty printing: for printing JSON objects legibly
 pp = pprint.PrettyPrinter(indent=4)
@@ -46,7 +46,6 @@ def get_items(
     # filter items
     filtered_items = apply_filters_to_items(
         all_items,
-        explain_results=False
     )
 
     # order items
@@ -62,7 +61,7 @@ def get_items(
     data = [
         d.to_dict(
             only=only,
-            # with_collections=True,
+            with_collections=True,
             related_objects=True,
         ) for d in items
     ]
@@ -128,6 +127,7 @@ def get_search(
     search_text: str = None,
     ordering: list = [],
     preview: bool = False,
+    explain_results: bool = True,
 ):
     """.
 
@@ -144,7 +144,6 @@ def get_search(
         Description of returned object.
 
     """
-
     # get all items
     all_items = select(
         i for i in db.Item
@@ -153,7 +152,7 @@ def get_search(
     # filter items
     filtered_items = apply_filters_to_items(
         all_items,
-        explain_results=True
+        filters
     )
 
     # order items
@@ -163,7 +162,11 @@ def get_search(
     items = ordered_items.page(page, pagesize=pagesize)
 
     # if search text not null and not preview: get matching instances by class
-    other_instances = get_matching_instances(ordered_items, search_text)
+    other_instances = get_matching_instances(
+        ordered_items,
+        search_text,
+        explain_results  # TODO dynamically
+    )
 
     # if preview: return counts of items and matching instances
     data = None
@@ -221,7 +224,17 @@ def apply_filters_to_items(
         Description of returned object.
 
     """
-    # TODO implement
+    tag_sets = ('key_topics',)
+    for field in filters:
+        allowed_values = filters[field]
+        if field in tag_sets:
+            items = select(
+                i
+                for i in items
+                for j in i.key_topics
+                if j.name in allowed_values
+            )
+
     return items
 
 
@@ -245,7 +258,11 @@ def apply_ordering_to_items(items, ordering: list = []):
     return items
 
 
-def get_matching_instances(items, search_text: str = None):
+def get_matching_instances(
+    items,
+    search_text: str = None,
+    explain_results: bool = True
+):
     """Given filters, return dict of lists of matching instances by class.
 
     Parameters
@@ -290,98 +307,12 @@ def get_matching_instances(items, search_text: str = None):
                 'items_query': lambda x: lambda i: x in i.key_topics
             }
         }
-        for class_name in to_check:
-            match_type = to_check[class_name]['match_type']
-            # special case: key topics
-            if class_name != 'Key_Topic':
-                matching_instances[class_name] = list()
-                entity = getattr(db, class_name)
-                matches = list()
-                if match_type not in ('exact-insensitive',):
-                    raise NotImplementedError(
-                        'Unsupported match type: ' + match_type
-                    )
-                else:
-
-                    # for each field to check, collect the matching entities into
-                    # a single list
-                    fields = to_check[class_name]['fields']
-                    cur_search_text = search_text.lower()
-                    all_matches_tmp = set()
-                    for field in fields:
-                        matches = select(
-                            i for i in entity
-                            if cur_search_text in getattr(i, field).lower()
-                        )
-                        all_matches_tmp = all_matches_tmp | set(matches[:][:])
-
-                    # for each match in the list, count number of results (slow?)
-                    # and get snippets showing why the instance matched
-                    items_query = to_check[class_name]['items_query']
-                    all_matches = list()
-                    for match in all_matches_tmp:
-                        # get number of results for this match
-                        n_items = count(items.filter(items_query(match)))
-                        d = match.to_dict(only=(['id'] + fields))
-                        d['n_items'] = n_items
-
-                        # exact-insensitive snippet
-                        # TODO code for finding other types of snippets
-                        # TODO score by relevance
-                        # TODO add snippet length constraints
-                        snippets = dict()
-                        pattern = re.compile(cur_search_text, re.IGNORECASE)
-
-                        def repl(x):
-                            return '<highlight>' + x.group(0) + '</highlight>'
-                        for field in fields:
-                            snippets[field] = list()
-                            if search_text in getattr(match, field).lower():
-                                snippet = re.sub(
-                                    pattern, repl, getattr(match, field))
-                                snippets[field].append(snippet)
-                        d['snippets'] = snippets
-                        all_matches.append(d)
-                    matching_instances[class_name] = all_matches
-            else:
-                # search through all used values for matches, then return
-                all_vals_nested = select(i.key_topics for i in items)[:][:]
-                all_vals = set([
-                    item for sublist in all_vals_nested for item in sublist])
-                if match_type not in ('exact-insensitive',):
-                    raise NotImplementedError(
-                        'Unsupported match type: ' + match_type
-                    )
-                else:
-                    all_matches_tmp = [
-                        i for i in all_vals if cur_search_text in i.lower()
-                    ]
-                    all_matches = list()
-                    items_query = to_check[class_name]['items_query']
-                    for match in all_matches_tmp:
-                        # get number of results for this match
-                        n_items = count(items.filter(items_query(match)))
-                        d = {'name': match}
-                        d['n_items'] = n_items
-
-                        # exact-insensitive snippet
-                        # TODO code for finding other types of snippets
-                        # TODO score by relevance
-                        # TODO add snippet length constraints
-                        snippets = dict()
-                        pattern = re.compile(cur_search_text, re.IGNORECASE)
-
-                        def repl(x):
-                            return '<highlight>' + x.group(0) + '</highlight>'
-                        for field in fields:
-                            snippets[field] = list()
-                            if search_text in match.lower():
-                                snippet = re.sub(
-                                    pattern, repl, match)
-                                snippets[field].append(snippet)
-                        d['snippets'] = snippets
-                        all_matches.append(d)
-                    matching_instances[class_name] = all_matches
+        matching_instances = search.get_matching_instances(
+            to_check,
+            items,
+            search_text,
+            explain_results
+        )
 
         # if match, return matching text and relevance score
         # collate and return all entity instances that matched in order of

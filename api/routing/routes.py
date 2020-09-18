@@ -35,6 +35,12 @@ def add_search_args(parser):
         required=False,
         help="""Search string to query matches with"""
     )
+    parser.add_argument(
+        'explain_results',
+        type=bool,
+        required=False,
+        help="""If True, will include which metadata fields matched the text"""
+    )
 
 
 def add_pagination_args(parser):
@@ -205,6 +211,8 @@ class Search(Resource):
             filters=filters,
             search_text=request.args.get('search_text', None),
             preview=request.args.get('preview', 'false') == 'true',
+            explain_results=request.args.get(
+                'explain_results', 'false') == 'true',
         )
 
 

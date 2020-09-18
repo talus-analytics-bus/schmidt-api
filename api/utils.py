@@ -35,6 +35,9 @@ only = {
         'id',
         'name',
     ],
+    'Tag': [
+        'name',
+    ],
 }
 
 
@@ -63,6 +66,8 @@ def jsonify_custom(obj):
         return obj.to_dict(only=only['Funder'])
     elif isinstance(obj, db.Event):
         return obj.to_dict(only=only['Event'])
+    elif isinstance(obj, db.Tag):
+        return obj.name
 
 
 def get_str_from_datetime(dt, t_res, strf_str):
