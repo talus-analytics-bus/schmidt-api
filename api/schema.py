@@ -71,6 +71,105 @@ def get_items(
 
 
 @db_session
+def get_item(
+    page: int = 1,
+    pagesize: int = 1000000,
+    id: int = None,
+    include_related: bool = False
+):
+    """Returns data about the item with the given ID.
+
+    TODO add pagination?
+
+    Parameters
+    ----------
+    id : int
+        Description of parameter `id`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+    if id is None:
+        return {}
+    else:
+        # get item
+        item = db.Item[id]
+
+        # define data output
+        items = [item]
+
+        # if include related, get those too
+        all_related = []
+        related = []
+        total = None
+        if include_related:
+            all_related = select(
+                (
+                    i,
+                    (
+                        author in item.authors
+                        and author in i.authors
+                        and i != item
+                    ),
+                    (
+                        tag in item.key_topics
+                        and tag in i.key_topics
+                    )
+                )
+                for i in db.Item
+                for author in db.Author
+                for tag in db.Tag
+                if (
+                    author in item.authors
+                    and author in i.authors
+                    and i != item
+                ) or (
+                    tag in item.key_topics
+                    and tag in i.key_topics
+                )
+            )
+            related = all_related.page(page, pagesize=pagesize)
+            total = count(all_related)
+
+        # return all data
+        related_dicts = []
+        for d in related:
+            datum = d[0].to_dict(
+                # only=only,
+                exclude=['search_text'],
+                with_collections=True,
+                related_objects=True,
+            )
+            why = list()
+            if d[1]:
+                why.append('more by this authoring org.')
+            if d[2]:
+                why.append('similar topic')
+            datum['why'] = why
+            related_dicts.append(datum)
+
+        res = {
+            'data': item.to_dict(
+                # only=only,
+                exclude=['search_text'],
+                with_collections=True,
+                related_objects=True,
+            ),
+        }
+        if include_related:
+            res['num_pages'] = math.ceil(total / pagesize)
+            res['page'] = page
+            res['pagesize'] = pagesize
+            res['total'] = total
+            res['num'] = len(related_dicts)
+            res['related_items'] = related_dicts
+        return res
+
+
+@db_session
 def get_file(id: int, get_thumb: bool):
     """Serves the file from S3 that corresponds to the File instances with
     the specified id.
@@ -163,6 +262,9 @@ def get_search(
         filtered_items, search_text, explain_results, preview
     )
 
+    # get filter value counts for current set
+    filter_counts = get_metadata_value_counts(searched_items)
+
     # order items
     ordered_items = apply_ordering_to_items(
         searched_items, ordering, search_text
@@ -196,6 +298,11 @@ def get_search(
                     at_least_one = True
                     snippets[field] = re.sub(
                         pattern, repl, getattr(d, field))
+
+            # pdf?
+            if any(cur_search_text in scraped_text for scraped_text in d.files.scraped_text):
+                at_least_one = True
+                snippets['files'] = 'PDF file contains text match'
             data_snippets.append(
                 snippets if at_least_one else None
             )
@@ -239,6 +346,7 @@ def get_search(
         }
         if explain_results:
             data['data_snippets'] = data_snippets
+            data['filter_counts'] = filter_counts
 
     return data
 
@@ -280,13 +388,7 @@ def apply_filters_to_items(
                 if j.name in allowed_values
                 and j.field == field
             )
-            # items = select(
-            #     i
-            #     for i in items
-            #     for j in i.key_topics
-            #     if j.name in allowed_values
-            #     and j.field == field
-            # )
+
         # filter items by linked attributes
         elif '.' in field:
             field_arr = field.split('.')
@@ -459,3 +561,69 @@ def get_matching_instances(
         # collate and return all entity instances that matched in order of
         # relevance, truncating at a threshold number of them
         return matching_instances
+
+
+@db_session
+def get_metadata_value_counts(items):
+    """Given a set of items, returns the possible filter values in them and
+    the number of items for each.
+
+    Parameters
+    ----------
+    items : type
+        Description of parameter `items`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+
+    # Key topics
+    key_topics = select(
+        (tag.name, count(i))
+        for i in items
+        for tag in i.key_topics
+    )[:][:]
+
+    # Authors
+    authors = select(
+        (author.authoring_organization, count(i))
+        for i in items
+        for author in i.authors
+    )[:][:]
+
+    # Author types
+    author_types = select(
+        (author.type_of_authoring_organization, count(i))
+        for i in items
+        for author in i.authors
+    )[:][:]
+
+    # Funder names
+    funders = select(
+        (funder.name, count(i))
+        for i in items
+        for funder in i.funders
+    )[:][:]
+
+    # Years
+    years = select(
+        (i.date.year, count(i))
+        for i in items
+    )[:][:]
+
+    # Item type
+    types_of_record = select(
+        (i.type_of_record, count(i))
+        for i in items
+    )[:][:]
+    return {
+        'key_topics': key_topics,
+        'authors': authors,
+        'author_types': author_types,
+        'funders': funders,
+        'years': years,
+        'types_of_record': types_of_record,
+    }

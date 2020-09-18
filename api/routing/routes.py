@@ -160,6 +160,39 @@ class Items(Resource):
         return data
 
 
+@api.route("/get/item", methods=["GET"])
+class Item(Resource):
+    # setup parser with pagination
+    parser = api.parser()
+
+    add_pagination_args(parser)
+    parser.add_argument(
+        'id',
+        type=int,
+        required=False,
+        help="""Unique ID of item to fetch"""
+    )
+    parser.add_argument(
+        'include_related',
+        type=bool,
+        required=False,
+        help="""Include related item data in response?"""
+    )
+
+    @api.doc(parser=parser)
+    @db_session
+    @format_response
+    def get(self):
+        data = schema.get_item(
+            page=int(request.args.get('page', 1)),
+            pagesize=int(request.args.get('pagesize', 10000000)),
+            id=int(request.args.get('id', 1)),
+            include_related=request.args.get(
+                'include_related', 'false') == 'true'
+        )
+        return data
+
+
 @api.route("/get/file", methods=["GET"])
 class File(Resource):
     # setup parser
