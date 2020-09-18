@@ -15,7 +15,7 @@ from collections import defaultdict
 # Third party libraries
 import boto3
 import pprint
-from pony.orm import select, db_session, raw_sql, distinct, count, StrArray
+from pony.orm import select, db_session, raw_sql, distinct, count, StrArray, desc
 from flask import send_file
 
 # Local libraries
@@ -37,18 +37,13 @@ def get_items(
         i for i in db.Item
     )
 
-    # apply filters
-    # TODO
-
-    # apply ordering
-    # TODO
-
     # filter items
     filtered_items = apply_filters_to_items(
         all_items,
     )
 
     # order items
+    # TODO
     ordered_items = apply_ordering_to_items(filtered_items)
 
     # get total num items, pages, etc. for response
@@ -310,9 +305,7 @@ def apply_search_to_items(
         search_items = select(
             search_item
             for search_item in search_items
-            for search_file in search_item.files
-            if search_file.scraped_text is not None
-            and search_text.lower() in search_item.search_text.lower()
+            if search_text.lower() in search_item.search_text.lower()
         )
 
     return search_items
