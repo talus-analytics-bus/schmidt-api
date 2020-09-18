@@ -11,8 +11,58 @@ from flask import Response
 from pony.orm.core import QueryResult
 from werkzeug.exceptions import NotFound
 
+# Local libraries
+from .db_models import db
+
 # pretty printing: for printing JSON objects legibly
 pp = pprint.PrettyPrinter(indent=4)
+
+only = {
+    'File': [
+        'id',
+        'num_bytes',
+        'filename',
+    ],
+    'Author': [
+        'id',
+        'authoring_organization',
+    ],
+    'Funder': [
+        'id',
+        'name',
+    ],
+    'Event': [
+        'id',
+        'name',
+    ],
+}
+
+
+def jsonify_custom(obj):
+    """Define how related entities should be represented as JSON.
+
+    Parameters
+    ----------
+    obj : type
+        Description of parameter `obj`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+    if isinstance(obj, set):
+        return list(obj)
+        raise TypeError
+    elif isinstance(obj, db.File):
+        return obj.to_dict(only=only['File'])
+    elif isinstance(obj, db.Author):
+        return obj.to_dict(only=only['Author'])
+    elif isinstance(obj, db.Funder):
+        return obj.to_dict(only=only['Funder'])
+    elif isinstance(obj, db.Event):
+        return obj.to_dict(only=only['Event'])
 
 
 def get_str_from_datetime(dt, t_res, strf_str):
@@ -73,47 +123,48 @@ def passes_filters(instance, filters):
 def format_response(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        try:
-            # Load unformatted data from prior function return statement.
-            unformattedData = func(*args, **kwargs)
+        # try:
+        # Load unformatted data from prior function return statement.
+        unformattedData = func(*args, **kwargs)
 
-            # Init formatted data.
-            formattedData = []
+        # Init formatted data.
+        formattedData = []
 
-            # If the type of unformatted data was a query result, parse it as
-            # items in a dictionary.
-            if type(unformattedData) == QueryResult:
-                formattedData = [r.to_dict() for r in unformattedData]
+        # If the type of unformatted data was a query result, parse it as
+        # items in a dictionary.
+        if type(unformattedData) == QueryResult:
+            formattedData = [r.to_dict() for r in unformattedData]
 
-            # If dict, return as-is
-            elif type(unformattedData) in (dict, defaultdict):
-                formattedData = unformattedData
+        # If dict, return as-is
+        elif type(unformattedData) in (dict, defaultdict):
+            formattedData = unformattedData
 
-            elif type(unformattedData) == Response:
-                formattedData = unformattedData
+        elif type(unformattedData) == Response:
+            formattedData = unformattedData
 
-            # Otherwise, it is a tuple or list, and should be returned directly.
-            else:
-                formattedData = unformattedData[:]
-            results = {
-                "data": formattedData, "error": False, "message": "Success"
-            }
+        # Otherwise, it is a tuple or list, and should be returned directly.
+        else:
+            formattedData = unformattedData[:]
+        results = {
+            "data": formattedData, "error": False, "message": "Success"
+        }
 
-        # If there was an error, return it.
-        except NotFound:
-            results = {
-                "data": request.path, "error": True, "message": "404 - not found"
-            }
-        except Exception as e:
-            print(e)
-            results = {
-                "data": '',
-                "error": True,
-                "message": str(e),
-            }
-        # pp.pprint(results)
+        # # If there was an error, return it.
+        # except NotFound:
+        #     results = {
+        #         "data": request.path, "error": True, "message": "404 - not found"
+        #     }
+        # except Exception as e:
+        #     print(e)
+        #     results = {
+        #         "data": '',
+        #         "error": True,
+        #         "message": str(e),
+        #     }
+
         # Convert entire response to JSON and return it.
-        return flask.jsonify(results)
+        return json.loads(json.dumps(results, default=jsonify_custom))
+        # return flask.jsonify(results)
 
     # Return the function wrapper (allows a succession of decorator functions to
     # be called)

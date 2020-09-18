@@ -4,7 +4,7 @@ from collections import defaultdict
 
 # Third party libraries
 from flask import request
-from flask_restplus import Resource
+from flask_restplus import Resource, fields
 from pony.orm import db_session
 import pytz
 
@@ -13,6 +13,28 @@ from ..db_models import db
 from ..db import api
 from .. import schema
 from ..utils import format_response
+
+
+def add_search_args(parser):
+    """Add search text arguments to `parser`.
+
+    Parameters
+    ----------
+    parser : type
+        Description of parameter `parser`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+    parser.add_argument(
+        'search_text',
+        type=str,
+        required=False,
+        help="""Search string to query matches with"""
+    )
 
 
 def add_pagination_args(parser):
@@ -43,16 +65,88 @@ def add_pagination_args(parser):
     )
 
 
-@api.route("/get/items", methods=["GET"])
+# define body model for search and item routes to allow filters and ordering
+body_model = api.schema_model('Body_Model', {
+    'properties': {
+        'filters': {
+            '$id': '#/properties/filters',
+            'type': 'object',
+            'title': 'The filters schema',
+            'description': 'An explanation about the purpose of this instance.',
+            'default': {"search_text": ["acad"]},
+            'examples': [
+                {"search_text": ["acad"]}
+            ],
+            'required': [],
+        },
+        'ordering': {
+            '$id': '#/properties/ordering',
+            'type': 'array',
+            'title': 'The ordering schema',
+            'description': 'An explanation about the purpose of this instance.',
+            'default': [['colname', 'dir']],
+            'examples': [
+                [
+                    [
+                        'colname',
+                        'dir'
+                    ]
+                ]
+            ],
+            'additionalItems': True,
+            'items': {
+                '$id': '#/properties/ordering/items',
+                'anyOf': [
+                    {
+                        '$id': '#/properties/ordering/items/anyOf/0',
+                        'type': 'array',
+                        'title': 'The first anyOf schema',
+                        'description': 'An explanation about the purpose of this instance.',
+                        'default': [],
+                        'examples': [
+                            [
+                                'colname',
+                                'dir'
+                            ]
+                        ],
+                        'additionalItems': True,
+                        'items': {
+                            '$id': '#/properties/ordering/items/anyOf/0/items',
+                            'anyOf': [
+                                {
+                                    '$id': '#/properties/ordering/items/anyOf/0/items/anyOf/0',
+                                    'type': 'string',
+                                    'title': 'The first anyOf schema',
+                                    'description': 'An explanation about the purpose of this instance.',
+                                    'default': '',
+                                    'examples': [
+                                        'colname',
+                                        'dir'
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    'type': 'object'
+})
+
+
+@api.route("/get/items", methods=["POST"])
 class Items(Resource):
     # setup parser with pagination
     parser = api.parser()
+    # add search text arg and pagination args
+    add_search_args(parser)
     add_pagination_args(parser)
 
-    @api.doc(parser=parser)
+    @api.doc(parser=parser, body=body_model)
     @db_session
     @format_response
-    def get(self):
+    def post(self):
         data = schema.get_items(
             page=int(request.args.get('page', 1)),
             pagesize=int(request.args.get('pagesize', 10000000))
@@ -70,12 +164,6 @@ class File(Resource):
         required=False,
         help="""Unique ID of file to fetch"""
     )
-    parser.add_argument(
-        'get_thumb',
-        type=bool,
-        required=False,
-        help="""True if thumbnail should be returned, False if entire file"""
-    )
 
     @api.doc(parser=parser)
     @db_session
@@ -87,8 +175,42 @@ class File(Resource):
         return data
 
 
+@api.route("/get/search", methods=["POST"])
+class Search(Resource):
+    """Get search results or preview of them."""
+    parser = api.parser()
+    parser.add_argument(
+        'preview',
+        type=bool,
+        required=False,
+        help="""If True, preview of search results only, with counts of items"""
+    )
+    # add search text arg
+    add_search_args(parser)
+
+    # add pagination arguments to parser
+    add_pagination_args(parser)
+
+    @api.doc(parser=parser, body=body_model)
+    @db_session
+    @format_response
+    def post(self):
+        # get request body containing filters, ordering, etc.
+        body = request.get_json()
+        filters = body['filters'] if 'filters' in body else {}
+
+        return schema.get_search(
+            page=int(request.args.get('page', 1)),
+            pagesize=int(request.args.get('pagesize', 10000000)),
+            filters=filters,
+            search_text=request.args.get('search_text', None),
+            preview=request.args.get('preview', 'false') == 'true',
+        )
+
+
 @api.route("/test", methods=["GET"])
 class Test(Resource):
+    """Test route."""
     parser = api.parser()
     parser.add_argument(
         'argument_name',
