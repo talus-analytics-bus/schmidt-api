@@ -152,21 +152,25 @@ def get_search(
     # filter items
     filtered_items = apply_filters_to_items(
         all_items,
-        filters
+        filters,
+        search_text
     )
-
-    # order items
-    ordered_items = apply_ordering_to_items(filtered_items)
-
-    # paginate items
-    items = ordered_items.page(page, pagesize=pagesize)
 
     # if search text not null and not preview: get matching instances by class
     other_instances = get_matching_instances(
-        ordered_items,
+        filtered_items,
         search_text,
         explain_results  # TODO dynamically
     )
+
+    # apply search text to items, if any
+    searched_items = apply_search_to_items(filtered_items, search_text)
+
+    # order items
+    ordered_items = apply_ordering_to_items(searched_items)
+
+    # paginate items
+    items = ordered_items.page(page, pagesize=pagesize)
 
     # if preview: return counts of items and matching instances
     data = None
@@ -183,18 +187,19 @@ def get_search(
         item_dicts = [
             d.to_dict(
                 # only=only,
+                exclude=['search_text'],
                 with_collections=True,
                 related_objects=True,
             )
             for d in items
         ]
         data = {
-            'data': item_dicts,
             'page': page,
             'num_pages': num_pages,
             'pagesize': pagesize,
             'total': total,
-            'num': len(item_dicts)
+            'num': len(item_dicts),
+            'data': item_dicts,
         }
 
     return data
@@ -203,7 +208,7 @@ def get_search(
 def apply_filters_to_items(
     items,
     filters: dict = {},
-    explain_results: bool = False
+    search_text: str = None
 ):
     """Given a set of filters, returns the items that match. If
     `explain_results` is True, return for each item the field(s) that matched
@@ -264,7 +269,53 @@ def apply_filters_to_items(
                 if getattr(i, field) in allowed_values
             )
 
+    # apply search text
+    if search_text is not None:
+        items = select(
+            i
+            for i in items
+            for file in i.files
+            if file.scraped_text is not None
+            and search_text.lower() in i.search_text.lower()
+        )
+
     return items
+
+
+def apply_search_to_items(
+    search_items,
+    search_text: str = None
+):
+    """Given a search string, applies exact-insensitive search to item
+    metadata to find matches.
+
+    TODO other search approaches like fuzzy
+
+    Parameters
+    ----------
+    items : type
+        Description of parameter `items`.
+    search_text : str
+        Description of parameter `search_text`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+
+    # apply search text
+    if search_text is not None:
+        search_items = select(
+            search_item
+            for search_item in search_items
+            for search_file in search_item.files
+            if search_file.scraped_text is not None
+            and search_text.lower() in search_item.search_text.lower()
+        )
+
+    return search_items
 
 
 def apply_ordering_to_items(items, ordering: list = []):

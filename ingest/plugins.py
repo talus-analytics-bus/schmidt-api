@@ -232,6 +232,63 @@ class SchmidtPlugin(IngestPlugin):
         return self
 
     @db_session
+    def update_item_search_text(self, db):
+        """Set item `search_text` column to contain all attributes that
+        should be searched.
+
+        Parameters
+        ----------
+        db : type
+            Description of parameter `db`.
+
+        Returns
+        -------
+        type
+            Description of returned object.
+
+        """
+        print('\nUpdating item search text...')
+        fields_str = (
+            'type_of_record',
+            'title',
+            'description',
+            'link',
+        )
+        fields_tag = (
+            'key_topics',
+        )
+        linked_fields_str = (
+            'authors.authoring_organization',
+            'funders.name',
+            'events.name',
+            'files.scraped_text',
+        )
+        all_items = select(i for i in db.Item)
+        for i in all_items:
+            search_text = ''
+            for field in fields_str:
+                search_text += getattr(i, field) + ' '
+            for field in fields_tag:
+                tag_names = select(
+                    tag.name
+                    for tag in getattr(i, field)
+                )[:][:]
+                search_text += " - ".join(tag_names) + ' '
+            for field in linked_fields_str:
+                arr = field.split('.')
+                entity_name = arr[0]
+                linked_field = arr[1]
+                linked_values = select(
+                    getattr(linked_entity, linked_field)
+                    for linked_entity in getattr(i, entity_name)
+                    if getattr(linked_entity, linked_field) is not None
+                )[:][:]
+                search_text += " - ".join(linked_values) + ' '
+            i.search_text = search_text
+            commit()
+        print('Complete.')
+
+    @db_session
     def update_authors(self, db):
         """Update authors based on the items data and write to database,
         linking to items as appropriate.
@@ -474,12 +531,16 @@ class SchmidtPlugin(IngestPlugin):
                     upsert_get = {
                         's3_filename': file['id'],
                     }
+                    has_thumbnails = 'thumbnails' in file
+                    source_thumbnail_permalink = \
+                        file['thumbnails']['large']['url'] if has_thumbnails \
+                        else None
                     upsert_set = {
                         'source_permalink': file['url'],
                         'filename': file['filename'],
                         's3_permalink': None,
                         'mime_type': file['type'],
-                        'source_thumbnail_permalink': file['thumbnails']['large']['url'],
+                        'source_thumbnail_permalink': source_thumbnail_permalink,
                         's3_thumbnail_permalink': None,
                         'num_bytes': file['size'],
                     }
@@ -493,7 +554,7 @@ class SchmidtPlugin(IngestPlugin):
                         },
                         {
                             'file_key': file['id'] + '_thumb',
-                            'file_url': file['thumbnails']['large']['url'],
+                            'file_url': source_thumbnail_permalink,
                             'field': 's3_thumbnail_permalink',
                             'scrape': False,
                         }
@@ -502,53 +563,57 @@ class SchmidtPlugin(IngestPlugin):
                     for file_to_check in files_to_check:
                         file_key = file_to_check['file_key']
                         file_url = file_to_check['file_url']
-                        scrape = file_to_check['scrape']
-                        file_already_in_s3 = file_key in self.s3_bucket_keys
+                        if file_url is None:
+                            continue
+                        else:
+                            scrape = file_to_check['scrape']
+                            file_already_in_s3 = file_key in self.s3_bucket_keys
 
-                        if not file_already_in_s3:
-                            # add file to S3 if not already there
-                            file = download_file(
-                                file_url,
-                                file_key,
-                                None,
-                                as_object=True
-                            )
-
-                            if file is not None:
-
-                                # scrape PDF text unless file is not a PDF or
-                                # unless it is not flagged as `scrape`
-                                if scrape:
-                                    try:
-                                        pdf = pdfplumber.open(BytesIO(file))
-                                        scraped_text = ''
-                                        first_page = pdf.pages[0]
-                                        for curpage in pdf.pages:
-                                            page_scraped_text = curpage.extract_text()
-                                            if page_scraped_text is not None:
-                                                scraped_text += page_scraped_text
-                                        upsert_set['scraped_text'] = scraped_text
-                                    except Exception as e:
-                                        print(
-                                            'File does not appear to be PDF, skipping scraping: ' + file['filename'])
-
-                                # add file to s3
-                                response = s3.put_object(
-                                    Body=file,
-                                    Bucket=S3_BUCKET_NAME,
-                                    Key=file_key,
+                            if not file_already_in_s3:
+                                # add file to S3 if not already there
+                                file = download_file(
+                                    file_url,
+                                    file_key,
+                                    None,
+                                    as_object=True
                                 )
 
-                                # set to public
-                                response2 = s3.put_object_acl(
-                                    ACL='public-read',
-                                    Bucket=S3_BUCKET_NAME,
-                                    Key=file_key,
-                                )
+                                if file is not None:
 
-                                field = file_to_check['field']
-                                upsert_set[field] = 'https://schmidt-storage.s3-us-west-1.amazonaws.com/' + file_key
-                                print('Added file to s3: ' + file_key)
+                                    # scrape PDF text unless file is not a PDF or
+                                    # unless it is not flagged as `scrape`
+                                    if scrape:
+                                        try:
+                                            pdf = pdfplumber.open(
+                                                BytesIO(file))
+                                            scraped_text = ''
+                                            first_page = pdf.pages[0]
+                                            for curpage in pdf.pages:
+                                                page_scraped_text = curpage.extract_text()
+                                                if page_scraped_text is not None:
+                                                    scraped_text += page_scraped_text
+                                            upsert_set['scraped_text'] = scraped_text
+                                        except Exception as e:
+                                            print(
+                                                'File does not appear to be PDF, skipping scraping: ' + file['filename'])
+
+                                    # add file to s3
+                                    response = s3.put_object(
+                                        Body=file,
+                                        Bucket=S3_BUCKET_NAME,
+                                        Key=file_key,
+                                    )
+
+                                    # set to public
+                                    response2 = s3.put_object_acl(
+                                        ACL='public-read',
+                                        Bucket=S3_BUCKET_NAME,
+                                        Key=file_key,
+                                    )
+
+                                    field = file_to_check['field']
+                                    upsert_set[field] = 'https://schmidt-storage.s3-us-west-1.amazonaws.com/' + file_key
+                                    print('Added file to s3: ' + file_key)
 
                     # upsert files
                     action, upserted = upsert(
