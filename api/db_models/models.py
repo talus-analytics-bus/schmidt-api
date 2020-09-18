@@ -19,7 +19,7 @@ class Item(db.Entity):
     internal_date_of_initial_entry = Optional(date, nullable=True)
     date = Optional(date, nullable=True)
     type_of_record = Optional(str)
-    key_topics = Optional(StrArray)
+    key_topics = Set('Tag')
     title = Optional(str, sql_default="'Untitled'", nullable=True)
     description = Optional(str)
     link = Optional(str)
@@ -117,3 +117,16 @@ class Metadata(db.Entity):
     linked_entity_name = Required(str)
     type = Required(str)
     PrimaryKey(entity_name, linked_entity_name, field)
+
+
+class Tag(db.Entity):
+    """Tags for single and multiselects."""
+    _table_ = "tag"
+
+    # Attributes
+    id = PrimaryKey(int, auto=True)
+    name = Required(str)
+    field = Required(str)
+
+    # Relationships
+    _key_topics = Set('Item')

@@ -164,6 +164,9 @@ class SchmidtPlugin(IngestPlugin):
             .worksheet(name='Schmidt dataset') \
             .as_dataframe()
 
+        # list tags that use the Tag entity
+        tag_fields = ('key_topics',)
+
         # get database fields for items to write
         field_data = select(
             i for i in db.Metadata
@@ -175,6 +178,7 @@ class SchmidtPlugin(IngestPlugin):
             get_keys = ('id')
             upsert_get = dict()
             upsert_set = dict()
+            upsert_tag = dict()
 
             for field_datum in field_data:
                 is_linked = field_datum.linked_entity_name != field_datum.entity_name
@@ -195,15 +199,34 @@ class SchmidtPlugin(IngestPlugin):
                         elif field_datum.type == 'StrArray':
                             if value == '':
                                 value = list()
-                        if key in get_keys:
-                            upsert_get[key] = value
+                        if key not in tag_fields:
+                            if key in get_keys:
+                                upsert_get[key] = value
+                            else:
+                                upsert_set[key] = value
                         else:
-                            upsert_set[key] = value
+                            upsert_tag[key] = value
             action, upserted = upsert(
                 db.Item,
                 get=upsert_get,
                 set=upsert_set,
             )
+
+            # assign all tag field keys here from upsert_set
+            for field in upsert_tag:
+                upsert_tag_field_vals = upsert_tag[field] if \
+                    iterable(upsert_tag[field]) else [upsert_tag[field]]
+                for tag_name in upsert_tag_field_vals:
+                    action_tag, upserted_tag = upsert(
+                        db.Tag,
+                        get={
+                            'name': tag_name,
+                            'field': field
+                        },
+                        set=dict(),
+                    )
+                    getattr(upserted, field).add(upserted_tag)
+                    commit()
 
         print('Items updated.')
         return self
