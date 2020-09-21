@@ -219,11 +219,17 @@ class Search(Resource):
         # get request body containing filters
         body = request.get_json()
         filters = body['filters'] if 'filters' in body else {}
+
+        # get search_text or set to None if blank
+        search_text = request.args.get('search_text', None)
+        if search_text == '':
+            search_text = None
+
         return schema.get_search(
             page=int(request.args.get('page', 1)),
             pagesize=int(request.args.get('pagesize', 10000000)),
             filters=filters,
-            search_text=request.args.get('search_text', None),
+            search_text=search_text,
             order_by=request.args.get('order_by', None),
             is_desc=request.args.get('is_desc', 'false') == 'true',
             preview=request.args.get('preview', 'false') == 'true',

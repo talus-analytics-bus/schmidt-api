@@ -270,7 +270,8 @@ def get_search(
     # if applicable, get explanation for search results (snippets)
     if not preview and explain_results:
         search_items_with_snippets = list()
-        cur_search_text = search_text.lower()
+        cur_search_text = search_text.lower() if search_text is not None \
+            else ''
         data_snippets = list()
 
         # TODO reuse code in search.py
