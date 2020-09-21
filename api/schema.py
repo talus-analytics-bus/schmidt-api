@@ -31,42 +31,36 @@ s3 = boto3.client('s3')
 def get_items(
     page,
     pagesize,
+    ids: list = [],
+    is_desc: bool = True,
+    order_by: str = 'date'
 ):
     # get all items
-    all_items = select(
+    selected_items = select(
         i for i in db.Item
-    )
-
-    # filter items
-    filtered_items = apply_filters_to_items(
-        all_items,
+        if (
+            len(ids) == 0
+            or i.id in ids
+        )
     )
 
     # order items
-    # TODO
-    ordered_items = apply_ordering_to_items(filtered_items)
+    ordered_items = apply_ordering_to_items(
+        selected_items, order_by, is_desc
+    )
 
     # get total num items, pages, etc. for response
     total = count(ordered_items)
     items = ordered_items.page(page, pagesize=pagesize)[:][:]
     num_pages = math.ceil(total / pagesize)
 
-    # convert to dict for response
-    only = ('id', 'title', 'key_topics', 'files')
-    data = [
-        d.to_dict(
-            only=only,
-            with_collections=True,
-            related_objects=True,
-        ) for d in items
-    ]
     return {
-        'data': data,
         'page': page,
         'num_pages': num_pages,
         'pagesize': pagesize,
         'total': total,
-        'num': len(data)
+        'num': len(items),
+        'data': items,
     }
 
 
@@ -219,7 +213,8 @@ def get_search(
     pagesize: int,
     filters: dict = {},
     search_text: str = None,
-    ordering: list = [],
+    order_by: str = 'date',
+    is_desc: bool = True,
     preview: bool = False,
     explain_results: bool = True,
 ):
@@ -238,6 +233,7 @@ def get_search(
         Description of returned object.
 
     """
+
     # get all items
     all_items = select(
         i for i in db.Item
@@ -267,7 +263,7 @@ def get_search(
 
     # order items
     ordered_items = apply_ordering_to_items(
-        searched_items, ordering, search_text
+        searched_items, order_by, is_desc, search_text
     )
 
     # if applicable, get explanation for search results (snippets)
@@ -291,13 +287,21 @@ def get_search(
                 'type_of_record',
                 'title',
                 'description',
+                'link',
             )
 
+            # basic fields
             for field in fields_str:
                 if cur_search_text in getattr(d, field).lower():
                     at_least_one = True
                     snippets[field] = re.sub(
                         pattern, repl, getattr(d, field))
+
+            # tag fields
+            # TODO
+
+            # linked fields
+            # TODO
 
             # pdf?
             if any(cur_search_text in scraped_text for scraped_text in d.files.scraped_text):
@@ -459,7 +463,12 @@ def apply_search_to_items(
     return search_items
 
 
-def apply_ordering_to_items(items, ordering: list = [], search_text=None):
+def apply_ordering_to_items(
+    items,
+    order_by: str = 'date',
+    is_desc: bool = True,
+    search_text=None
+):
     """Given an ordering, returns the items in that order.
 
     Parameters
@@ -476,7 +485,7 @@ def apply_ordering_to_items(items, ordering: list = [], search_text=None):
 
     """
     # TODO implement col ordering (relevance is done for now)
-    by_relevance = True
+    by_relevance = order_by == 'relevance'
     item_ids_by_relevance = list()
     if by_relevance and search_text is not None:
         cur_search_text = search_text.lower()
@@ -498,6 +507,14 @@ def apply_ordering_to_items(items, ordering: list = [], search_text=None):
         item_ids_by_relevance.reverse()
         item_ids = [i[0] for i in item_ids_by_relevance]
         items = [db.Item[i[0]] for i in item_ids_by_relevance]
+        # if not sorting by relevance, handle other cases
+    elif order_by == 'date' or order_by == 'title':
+        # date or title
+        # `items` is PonyORM query object, so apply ordering using methods
+        if is_desc:
+            items = items.order_by(desc(getattr(db.Item, order_by)))
+        else:
+            items = items.order_by(getattr(db.Item, order_by))
     return items
 
 

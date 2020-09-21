@@ -71,7 +71,34 @@ def add_pagination_args(parser):
     )
 
 
-# define body model for search and item routes to allow filters and ordering
+def add_ordering_args(parser):
+    """Add ordering arguments to the provided `parser`.
+
+    Parameters
+    ----------
+    parser : type
+        Description of parameter `parser`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+    parser.add_argument(
+        'order_by',
+        type=str,
+        required=False,
+        help="""Attribute to order by, currently date, title, or relevance"""
+    )
+    parser.add_argument(
+        'is_desc',
+        type=bool,
+        help="""True if ordering should be descending order, false if ascending"""
+    )
+
+
+# define body model for search and item routes to allow filters
 body_model = api.schema_model('Body_Model', {
     'properties': {
         'filters': {
@@ -85,77 +112,29 @@ body_model = api.schema_model('Body_Model', {
             ],
             'required': [],
         },
-        'ordering': {
-            '$id': '#/properties/ordering',
-            'type': 'array',
-            'title': 'The ordering schema',
-            'description': 'An explanation about the purpose of this instance.',
-            'default': [['colname', 'dir']],
-            'examples': [
-                [
-                    [
-                        'colname',
-                        'dir'
-                    ]
-                ]
-            ],
-            'additionalItems': True,
-            'items': {
-                '$id': '#/properties/ordering/items',
-                'anyOf': [
-                    {
-                        '$id': '#/properties/ordering/items/anyOf/0',
-                        'type': 'array',
-                        'title': 'The first anyOf schema',
-                        'description': 'An explanation about the purpose of this instance.',
-                        'default': [],
-                        'examples': [
-                            [
-                                'colname',
-                                'dir'
-                            ]
-                        ],
-                        'additionalItems': True,
-                        'items': {
-                            '$id': '#/properties/ordering/items/anyOf/0/items',
-                            'anyOf': [
-                                {
-                                    '$id': '#/properties/ordering/items/anyOf/0/items/anyOf/0',
-                                    'type': 'string',
-                                    'title': 'The first anyOf schema',
-                                    'description': 'An explanation about the purpose of this instance.',
-                                    'default': '',
-                                    'examples': [
-                                        'colname',
-                                        'dir'
-                                    ]
-                                }
-                            ]
-                        }
-                    }
-                ]
-            }
-        }
     },
     'type': 'object'
 })
 
 
-@api.route("/get/items", methods=["POST"])
+@api.route("/get/items", methods=["GET"])
 class Items(Resource):
     # setup parser with pagination
     parser = api.parser()
-    # add search text arg and pagination args
-    add_search_args(parser)
-    add_pagination_args(parser)
 
-    @api.doc(parser=parser, body=body_model)
+    # add search text arg and pagination args
+    add_pagination_args(parser)
+    add_ordering_args(parser)
+
+    @api.doc(parser=parser)
     @db_session
     @format_response
-    def post(self):
+    def get(self):
         data = schema.get_items(
             page=int(request.args.get('page', 1)),
-            pagesize=int(request.args.get('pagesize', 10000000))
+            pagesize=int(request.args.get('pagesize', 10000000)),
+            order_by=request.args.get('order_by', None),
+            is_desc=request.args.get('is_desc', 'false') == 'true',
         )
         return data
 
@@ -230,19 +209,23 @@ class Search(Resource):
     # add pagination arguments to parser
     add_pagination_args(parser)
 
+    # add ordering (sorting) arguments to parser
+    add_ordering_args(parser)
+
     @api.doc(parser=parser, body=body_model)
     @db_session
     @format_response
     def post(self):
-        # get request body containing filters, ordering, etc.
+        # get request body containing filters
         body = request.get_json()
         filters = body['filters'] if 'filters' in body else {}
-
         return schema.get_search(
             page=int(request.args.get('page', 1)),
             pagesize=int(request.args.get('pagesize', 10000000)),
             filters=filters,
             search_text=request.args.get('search_text', None),
+            order_by=request.args.get('order_by', None),
+            is_desc=request.args.get('is_desc', 'false') == 'true',
             preview=request.args.get('preview', 'false') == 'true',
             explain_results=request.args.get(
                 'explain_results', 'false') == 'true',

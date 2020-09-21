@@ -3,6 +3,7 @@ import functools
 import json
 import pytz
 from collections import defaultdict
+from datetime import date
 
 # Third party libraries
 import pprint
@@ -18,6 +19,12 @@ from .db_models import db
 pp = pprint.PrettyPrinter(indent=4)
 
 only = {
+    'Item': [
+        'id',
+        'title',
+        'date',
+        'files'
+    ],
     'File': [
         'id',
         'num_bytes',
@@ -66,8 +73,16 @@ def jsonify_custom(obj):
         return obj.to_dict(only=only['Funder'])
     elif isinstance(obj, db.Event):
         return obj.to_dict(only=only['Event'])
+    elif isinstance(obj, db.Item):
+        return obj.to_dict(
+            only=only['Item'],
+            with_collections=True,
+            related_objects=True,
+        )
     elif isinstance(obj, db.Tag):
         return obj.name
+    elif isinstance(obj, date):
+        return str(obj)
 
 
 def get_str_from_datetime(dt, t_res, strf_str):

@@ -174,7 +174,9 @@ class SchmidtPlugin(IngestPlugin):
         )
 
         # parse items into instances to write to database
+        item_dicts = self.item.to_dict(orient="records")
         for d in self.item.to_dict(orient="records"):
+
             get_keys = ('id')
             upsert_get = dict()
             upsert_set = dict()
@@ -264,6 +266,8 @@ class SchmidtPlugin(IngestPlugin):
             'files.scraped_text',
         )
         all_items = select(i for i in db.Item)
+
+        # add plain fields on the Item entity, like name and desc
         for i in all_items:
             search_text = ''
             for field in fields_str:
@@ -274,6 +278,8 @@ class SchmidtPlugin(IngestPlugin):
                     for tag in getattr(i, field)
                 )[:][:]
                 search_text += " - ".join(tag_names) + ' '
+
+            # add linked fields from related entities like authors
             for field in linked_fields_str:
                 arr = field.split('.')
                 entity_name = arr[0]
@@ -284,6 +290,8 @@ class SchmidtPlugin(IngestPlugin):
                     if getattr(linked_entity, linked_field) is not None
                 )[:][:]
                 search_text += " - ".join(linked_values) + ' '
+
+            # update search text
             i.search_text = search_text
             commit()
         print('Complete.')
@@ -515,8 +523,16 @@ class SchmidtPlugin(IngestPlugin):
         # define s3 client
         s3 = boto3.client('s3')
 
+        item_dicts = self.item.to_dict(orient='records')
+        n_item_dicts = len(item_dicts)
+        cur_item_dict = 0
+
         # for each item
-        for d in self.item.to_dict(orient='records'):
+        for d in item_dicts:
+            print(
+                f'''\nUpdating item {str(cur_item_dict)} of {str(n_item_dicts)}''')
+            cur_item_dict = cur_item_dict + 1
+
             file_defined = d['PDF Attachments'] != ''
             item = db.Item[int(d['ID (automatically assigned)'])]
             item_defined = item is not None
@@ -586,12 +602,17 @@ class SchmidtPlugin(IngestPlugin):
                                         try:
                                             pdf = pdfplumber.open(
                                                 BytesIO(file))
-                                            scraped_text = ''
+
+                                            # for debug: get first page only
                                             first_page = pdf.pages[0]
-                                            for curpage in pdf.pages:
-                                                page_scraped_text = curpage.extract_text()
-                                                if page_scraped_text is not None:
-                                                    scraped_text += page_scraped_text
+                                            scraped_text = first_page.extract_text()
+
+                                            # scraped_text = ''
+                                            # first_page = pdf.pages[0]
+                                            # for curpage in pdf.pages:
+                                            #     page_scraped_text = curpage.extract_text()
+                                            #     if page_scraped_text is not None:
+                                            #         scraped_text += page_scraped_text
                                             upsert_set['scraped_text'] = scraped_text
                                         except Exception as e:
                                             print(
