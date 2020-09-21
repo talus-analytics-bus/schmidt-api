@@ -232,19 +232,24 @@ class Search(Resource):
         )
 
 
-@api.route("/test", methods=["GET"])
-class Test(Resource):
-    """Test route."""
+# XLSX download of items data
+@api.route("/export", methods=["POST"])
+class Export(Resource):
+    """Return XLSX file of data with specified filters applied."""
     parser = api.parser()
-    parser.add_argument(
-        'argument_name',
-        type=str,
-        required=False,
-        help="""Description of argument"""
-    )
 
     @api.doc(parser=parser)
     @db_session
-    @format_response
-    def get(self):
-        return {'text': "Test successful"}
+    def post(self):
+        params = request.args
+        filters = request.json.get('filters')
+
+        # filters = body.filters if bool(body.filters) == True else None
+        send_file_args = schema.export(
+            filters=filters,
+        )
+        return send_file(
+            send_file_args['content'],
+            attachment_filename=send_file_args['attachment_filename'],
+            as_attachment=True
+        )

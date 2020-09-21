@@ -21,6 +21,7 @@ from flask import send_file
 # Local libraries
 from .db_models import db
 from . import search
+from .export import SchmidtExportPlugin
 
 # pretty printing: for printing JSON objects legibly
 pp = pprint.PrettyPrinter(indent=4)
@@ -643,4 +644,32 @@ def get_metadata_value_counts(items):
         'funders': funders,
         'years': years,
         'types_of_record': types_of_record,
+    }
+
+
+@db_session
+def export(filters: dict = None):
+    """Return XLSX data export for data with the given filters applied.
+
+    Parameters
+    ----------
+    filters : dict
+        The filters to apply.
+
+    """
+    media_type = 'application/' + \
+        'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+    # Create Excel export file
+    genericExcelExport = SchmidtExportPlugin(db, filters, class_name='Item')
+    content = genericExcelExport.build()
+
+    # return the file
+    today = date.today()
+    attachment_filename = f'''Pandemic Repository - Data Export {str(today)}.xlsx'''
+
+    return {
+        'content': content,
+        'attachment_filename': attachment_filename,
+        'as_attachment': True
     }
