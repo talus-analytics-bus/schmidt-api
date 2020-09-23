@@ -27,6 +27,24 @@ from .export import SchmidtExportPlugin
 pp = pprint.PrettyPrinter(indent=4)
 s3 = boto3.client('s3')
 
+def cached(func):
+    """ Caching """
+    cache = {}
+
+    @functools.wraps(func)
+    def wrapper(*func_args, **kwargs):
+
+        key = str(kwargs)
+        print('key')
+        print(key)
+        if key in cache:
+            return cache[key]
+
+        results = func(*func_args, **kwargs)
+        cache[key] = results
+        return results
+
+    return wrapper
 
 @db_session
 def get_items(
@@ -260,19 +278,24 @@ def get_search(
     )
 
     # get filter value counts for current set
-    filter_counts = get_metadata_value_counts(searched_items)
+    filter_counts = get_metadata_value_counts(items=searched_items)
 
     # order items
     ordered_items = apply_ordering_to_items(
         searched_items, order_by, is_desc, search_text
     )
 
+    # paginate items
+    start = 1 + pagesize * (page - 1) - 1
+    end = pagesize * (page)
+    items = ordered_items[start:end]
+
     # if applicable, get explanation for search results (snippets)
-    if not preview and explain_results:
+    data_snippets = list()
+    if not preview and explain_results and search_text is not None:
         search_items_with_snippets = list()
         cur_search_text = search_text.lower() if search_text is not None \
             else ''
-        data_snippets = list()
 
         # TODO reuse code in search.py
         pattern = re.compile(cur_search_text, re.IGNORECASE)
@@ -280,7 +303,7 @@ def get_search(
         def repl(x):
             return '<highlight>' + x.group(0) + '</highlight>'
 
-        for d in ordered_items:
+        for d in items:
             snippets = dict()
             at_least_one = False
             # check basic string fields for exact-insensitive matches
@@ -303,7 +326,26 @@ def get_search(
             # TODO
 
             # linked fields
-            # TODO
+            linked_fields_str = (
+                'authors.authoring_organization',
+            )
+            for field_tmp in linked_fields_str:
+                arr_tmp = field_tmp.split('.')
+                entity_name = arr_tmp[0]
+                field = arr_tmp[1]
+                for linked_instance in getattr(d, entity_name):
+                    if cur_search_text in getattr(linked_instance, field).lower():
+                        at_least_one = True
+                        if entity_name not in snippets:
+                            snippets[entity_name] = []
+                        cur_snippet = dict()
+                        cur_snippet[field] = re.sub(
+                            pattern, repl, getattr(linked_instance, field)
+                            )
+                        cur_snippet['id'] = linked_instance.id
+                        snippets[entity_name].append(
+                            cur_snippet
+                        )
 
             # pdf?
             if any(cur_search_text in scraped_text for scraped_text in d.files.scraped_text):
@@ -312,12 +354,6 @@ def get_search(
             data_snippets.append(
                 snippets if at_least_one else None
             )
-
-    # paginate items
-    start = 1 + pagesize * (page - 1) - 1
-    end = pagesize * (page)
-    items = ordered_items[start:end]
-    # items = ordered_items.page(page, pagesize=pagesize)
 
     # if preview: return counts of items and matching instances
     data = None
@@ -388,11 +424,11 @@ def apply_filters_to_items(
         # filters items by Tag attributes
         if field in tag_sets:
             items = select(
-                i
-                for i in items
-                for j in i.key_topics
-                if j.name in allowed_values
-                and j.field == field
+                i_filtered
+                for i_filtered in items
+                for j_topic in i_filtered.key_topics
+                if j_topic.name in allowed_values
+                and j_topic.field == field
             )
 
         # filter items by linked attributes
@@ -404,11 +440,30 @@ def apply_filters_to_items(
             items = select(
                 i
                 for i in items
-                for j in getattr(i, entity_name + 's')
-                if getattr(j, linked_field) in allowed_values
+                for j_linked in getattr(i, entity_name + 's')
+                if str(getattr(j_linked, linked_field)) in allowed_values
             )
-
+        # special: years
+        elif field == 'years':
+            if 'range' not in allowed_values[0]:
+                items = select(
+                    i
+                    for i in items
+                    if str(i.date.year) in allowed_values
+                )
+            else:
+                range = allowed_values[0].split('_')[1:3]
+                start = int(range[0]) if range[0] != 'null' else 0
+                end = int(range[1]) if range[1] != 'null' else 9999
+                items = select(
+                    i
+                    for i in items
+                    if i.date.year >= start
+                    and i.date.year <= end
+                )
         else:
+            print('field')
+            print(field)
             items = select(
                 i
                 for i in items
@@ -511,12 +566,13 @@ def apply_ordering_to_items(
         items = [db.Item[i[0]] for i in item_ids_by_relevance]
         # if not sorting by relevance, handle other cases
     elif order_by == 'date' or order_by == 'title':
-        # date or title
-        # `items` is PonyORM query object, so apply ordering using methods
-        if is_desc:
-            items = items.order_by(desc(getattr(db.Item, order_by)))
-        else:
-            items = items.order_by(getattr(db.Item, order_by))
+        desc_text = 'DESC' if is_desc else ''
+
+        # put nulls last always
+        if order_by == 'date':
+            items = items.order_by(raw_sql(f'''i.date {desc_text} NULLS LAST'''))
+        elif order_by == 'title':
+            items = items.order_by(raw_sql(f'''i.title {desc_text} NULLS LAST'''))
     return items
 
 
@@ -581,11 +637,13 @@ def get_matching_instances(
         # relevance, truncating at a threshold number of them
         return matching_instances
 
-
 @db_session
+# @cached
 def get_metadata_value_counts(items):
     """Given a set of items, returns the possible filter values in them and
     the number of items for each.
+
+    TODO optimize by reducing db queries
 
     Parameters
     ----------
@@ -598,17 +656,22 @@ def get_metadata_value_counts(items):
         Description of returned object.
 
     """
+    # print(items)
+    if items is None:
+        items = db.Item
 
     # Key topics
     key_topics = select(
-        (tag.name, count(i))
+        (
+            i.key_topics.name,
+            count(i),
+        )
         for i in items
-        for tag in i.key_topics
     )[:][:]
 
     # Authors
     authors = select(
-        (author.authoring_organization, count(i))
+        (author.authoring_organization, count(i), author.id)
         for i in items
         for author in i.authors
     )[:][:]
@@ -638,7 +701,9 @@ def get_metadata_value_counts(items):
         (i.type_of_record, count(i))
         for i in items
     )[:][:]
-    return {
+
+
+    output = {
         'key_topics': key_topics,
         'authors': authors,
         'author_types': author_types,
@@ -646,6 +711,8 @@ def get_metadata_value_counts(items):
         'years': years,
         'types_of_record': types_of_record,
     }
+
+    return output
 
 
 @db_session

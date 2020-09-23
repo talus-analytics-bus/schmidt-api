@@ -238,6 +238,18 @@ class Search(Resource):
         )
 
 
+@api.route("/get/filter_counts", methods=["GET"])
+class Filter_Counts(Resource):
+    """Get possible filter values and baseline number of each in dataset."""
+    parser = api.parser()
+
+    @api.doc(parser=parser)
+    @db_session
+    @format_response
+    def get(self):
+        return schema.get_metadata_value_counts(None)
+
+
 # XLSX download of items data
 @api.route("/export", methods=["POST"])
 class Export(Resource):
