@@ -10,7 +10,7 @@ jobs:
       - checkout
 
       - run:
-          name: Installing Deployment Dependencies
+          name: Installing deployment dependencies
           working_directory: /
           command: |
             sudo pip3 install awsebcli --upgrade
