@@ -1,0 +1,30 @@
+version: 2
+jobs:
+  deploy-prod:
+    working_directory: ~/repo
+
+    docker:
+      - image: circleci/python:3.7.7
+
+    steps:
+      - checkout
+
+      - run:
+          name: Installing Deployment Dependencies
+          working_directory: /
+          command: |
+            sudo pip3 install awsebcli --upgrade
+
+      - run:
+          name: Deploying
+          command: eb deploy schmidt-api-prod
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - deploy-prod:
+          filters:
+            branches:
+              only:
+                - master
