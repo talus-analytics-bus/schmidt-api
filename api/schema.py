@@ -352,7 +352,7 @@ def get_search(
                 at_least_one = True
                 snippets['files'] = 'PDF file contains text match'
             data_snippets.append(
-                snippets if at_least_one else None
+                snippets if at_least_one else dict()
             )
 
     # if preview: return counts of items and matching instances
@@ -437,37 +437,50 @@ def apply_filters_to_items(
             entity_name = field_arr[0]
             linked_field = field_arr[1]
             entity = getattr(db, entity_name.capitalize())
-            items = select(
-                i
-                for i in items
-                for j_linked in getattr(i, entity_name + 's')
-                if str(getattr(j_linked, linked_field)) in allowed_values
-            )
+            if entity_name == 'author' and linked_field == 'id':
+                items = select(
+                    i_linked_author
+                    for i_linked_author in items
+                    for j_linked_author in i_linked_author.authors
+                    if str(j_linked_author.id) in allowed_values
+                )
+            elif entity_name == 'author' and linked_field == 'type_of_authoring_organization':
+                items = select(
+                    i_linked_author_type
+                    for i_linked_author_type in items
+                    for j_linked_author_type in i_linked_author_type.authors
+                    if str(j_linked_author_type.type_of_authoring_organization) in allowed_values
+                )
+            else:
+                items = select(
+                    i_linked
+                    for i_linked in items
+                    for j_linked in getattr(i_linked, entity_name + 's')
+                    if str(getattr(j_linked, linked_field)) in allowed_values
+                )
         # special: years
         elif field == 'years':
             if 'range' not in allowed_values[0]:
                 items = select(
-                    i
-                    for i in items
-                    if str(i.date.year) in allowed_values
+                    i_years
+                    for i_years in items
+                    if str(i_years.date.year) in allowed_values
                 )
             else:
                 range = allowed_values[0].split('_')[1:3]
                 start = int(range[0]) if range[0] != 'null' else 0
                 end = int(range[1]) if range[1] != 'null' else 9999
                 items = select(
-                    i
-                    for i in items
-                    if i.date.year >= start
-                    and i.date.year <= end
+                    i_range
+                    for i_range in items
+                    if i_range.date.year >= start
+                    and i_range.date.year <= end
                 )
         else:
-            print('field')
-            print(field)
             items = select(
-                i
-                for i in items
-                if getattr(i, field) in allowed_values
+                i_standard
+                for i_standard in items
+                if getattr(i_standard, field) in allowed_values
             )
 
     # apply search text
