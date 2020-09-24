@@ -35,8 +35,6 @@ def cached(func):
     def wrapper(*func_args, **kwargs):
 
         key = str(kwargs)
-        print('key')
-        print(key)
         if key in cache:
             return cache[key]
 
@@ -324,10 +322,22 @@ def get_search(
 
             # tag fields
             # TODO
+            # fields_tag_str = (
+            #     ('key_topics', 'name'),
+            # )
+            # for field, linked_field in fields_tag_str:
+            #     tags = getattr(getattr(d, field), linked_field)
+            #
+            #     if cur_search_text in getattr(getattr(d, field), linked_field).lower():
+            #         at_least_one = True
+            #         snippets[field] = re.sub(
+            #             pattern, repl, getattr(d, field))
+
 
             # linked fields
             linked_fields_str = (
                 'authors.authoring_organization',
+                'funders.name',
             )
             for field_tmp in linked_fields_str:
                 arr_tmp = field_tmp.split('.')

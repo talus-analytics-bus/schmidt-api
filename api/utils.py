@@ -33,6 +33,9 @@ only = {
     'Author': [
         'id',
         'authoring_organization',
+        'type_of_authoring_organization',
+        'if_national_country_of_authoring_org',
+        'authoring_organization_has_governance_authority',
     ],
     'Funder': [
         'id',
