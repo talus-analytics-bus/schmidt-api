@@ -32,6 +32,7 @@ only = {
         'id',
         'num_bytes',
         'filename',
+        's3_filename',
     ],
     'Author': [
         'id',

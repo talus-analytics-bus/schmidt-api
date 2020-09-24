@@ -178,7 +178,7 @@ class Item(Resource):
         return data
 
 
-@api.route("/get/file", methods=["GET"])
+@api.route("/get/file/<title>", methods=["GET"])
 class File(Resource):
     # setup parser
     parser = api.parser()
@@ -191,7 +191,7 @@ class File(Resource):
 
     @api.doc(parser=parser)
     @db_session
-    def get(self):
+    def get(self, title: str):
         details = schema.get_file(
             id=int(request.args.get('id', 1)),
             get_thumb=request.args.get('get_thumb', "false") == "true",

@@ -158,7 +158,7 @@ def get_item(
             )
             why = list()
             if d[1]:
-                why.append('more by this authoring org.')
+                why.append('also by this authoring org.')
             if d[2]:
                 why.append('similar topic')
             datum['why'] = why
