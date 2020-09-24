@@ -149,20 +149,25 @@ def get_item(
 
         # return all data
         related_dicts = []
+        already_added = set()
         for d in related:
-            datum = d[0].to_dict(
-                # only=only,
-                exclude=['search_text'],
-                with_collections=True,
-                related_objects=True,
-            )
-            why = list()
-            if d[1]:
-                why.append('also by this authoring org.')
-            if d[2]:
-                why.append('similar topic')
-            datum['why'] = why
-            related_dicts.append(datum)
+            if d[0].id in already_added:
+                continue
+            else:
+                already_added.add(d[0].id)
+                datum = d[0].to_dict(
+                    # only=only,
+                    exclude=['search_text'],
+                    with_collections=True,
+                    related_objects=True,
+                )
+                why = list()
+                if d[1]:
+                    why.append('also by this authoring org.')
+                if d[2]:
+                    why.append('similar topic')
+                datum['why'] = why
+                related_dicts.append(datum)
 
         res = {
             'data': item.to_dict(
