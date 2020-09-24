@@ -604,6 +604,7 @@ class SchmidtPlugin(IngestPlugin):
                                                 BytesIO(file))
 
                                             # for debug: get first page only
+                                            # TODO revert
                                             first_page = pdf.pages[0]
                                             scraped_text = first_page.extract_text()
 

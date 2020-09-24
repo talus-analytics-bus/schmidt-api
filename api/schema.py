@@ -722,6 +722,13 @@ def get_metadata_value_counts(items):
         for i in items
     )[:][:]
 
+    # Events
+    events = select(
+        (event.name, count(i))
+        for i in items
+        for event in i.events
+    )[:][:]
+
     # Item type
     types_of_record = select(
         (i.type_of_record, count(i))
@@ -736,6 +743,7 @@ def get_metadata_value_counts(items):
         'funders': funders,
         'years': years,
         'types_of_record': types_of_record,
+        'events': events,
     }
 
     return output
