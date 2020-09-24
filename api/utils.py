@@ -22,6 +22,7 @@ only = {
     'Item': [
         'id',
         'title',
+        'type_of_record',
         'date',
         'authors',
         'files',
