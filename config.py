@@ -123,12 +123,16 @@ class Config:
 
         no_config = (len(cfg) == 1 and len(cfg['DEFAULT']) == 0)
         self.db = dict()
+        print("os.environ.get('PROD') != 'true' and not no_config")
+        print(os.environ.get('PROD') != 'true' and not no_config)
         if os.environ.get('PROD') != 'true' and not no_config:
             # if not no_config:
             for d in cfg['DEFAULT']:
                 self.db[d] = cfg['DEFAULT'].get(d)
         else:
             secret = json.loads(get_secret())
+            print('secret')
+            print(secret)
             self.db['username'] = secret['username']
             self.db['host'] = secret['host']
             self.db['password'] = secret['password']
