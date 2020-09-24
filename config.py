@@ -18,8 +18,8 @@ import os
 # retrieve AWS Secret, used to define connection string for database in
 # production mode
 def get_secret(
-    secret_name="talus_dev_rds_secret",
-    region_name="us-west-1",
+    secret_name="schmidt_rds_secret",
+    region_name="us-east-1",
     profile='default'
 ):
     """Retrieve an AWS Secret value, given valid connection parameters and
