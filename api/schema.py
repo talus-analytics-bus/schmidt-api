@@ -125,7 +125,6 @@ def get_item(
                     (
                         author in item.authors
                         and author in i.authors
-                        and i != item
                     ),
                     (
                         tag in item.key_topics
@@ -135,14 +134,15 @@ def get_item(
                 for i in db.Item
                 for author in db.Author
                 for tag in db.Tag
-                if (
+                if ((
                     author in item.authors
                     and author in i.authors
-                    and i != item
                 ) or (
                     tag in item.key_topics
                     and tag in i.key_topics
-                )
+                ))
+                and i != item
+
             )
             related = all_related.page(page, pagesize=pagesize)
             total = count(all_related)
