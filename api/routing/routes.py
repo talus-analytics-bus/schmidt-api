@@ -3,7 +3,7 @@ from datetime import datetime
 from collections import defaultdict
 
 # Third party libraries
-from flask import request
+from flask import request, send_file
 from flask_restplus import Resource, fields
 from pony.orm import db_session
 import pytz
@@ -130,11 +130,17 @@ class Items(Resource):
     @db_session
     @format_response
     def get(self):
+        ids = request.args.getlist('ids')
+        def to_int(x):
+            return int(x)
+        ids = list(map(to_int, ids))
+
         data = schema.get_items(
             page=int(request.args.get('page', 1)),
             pagesize=int(request.args.get('pagesize', 10000000)),
             order_by=request.args.get('order_by', None),
             is_desc=request.args.get('is_desc', 'false') == 'true',
+            ids=ids,
         )
         return data
 
@@ -186,11 +192,17 @@ class File(Resource):
     @api.doc(parser=parser)
     @db_session
     def get(self):
-        data = schema.get_file(
+        details = schema.get_file(
             id=int(request.args.get('id', 1)),
             get_thumb=request.args.get('get_thumb', "false") == "true",
         )
-        return data
+        data = details['data']
+        data.seek(0)
+        return send_file(
+            data,
+            attachment_filename=details['attachment_filename'],
+            as_attachment=details['as_attachment']
+        )
 
 
 @api.route("/get/search", methods=["POST"])

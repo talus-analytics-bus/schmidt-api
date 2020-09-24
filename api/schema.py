@@ -36,6 +36,8 @@ def cached(func):
 
         key = str(kwargs)
         if key in cache:
+            print('key')
+            print(key)
             return cache[key]
 
         results = func(*func_args, **kwargs)
@@ -181,6 +183,7 @@ def get_item(
 
 
 @db_session
+# @cached
 def get_file(id: int, get_thumb: bool):
     """Serves the file from S3 that corresponds to the File instances with
     the specified id.
@@ -207,8 +210,8 @@ def get_file(id: int, get_thumb: bool):
         print(e)
         return 'Document not found (404)'
 
-    # return to start of IO stream
-    data.seek(0)
+    # # return to start of IO stream
+    # data.seek(0)
 
     # return file with correct media type given its extension
     media_type = 'application'
@@ -217,11 +220,11 @@ def get_file(id: int, get_thumb: bool):
 
     attachment_filename = file.filename if not get_thumb else \
         file.s3_filename + '_thumb.png'
-    return send_file(
-        data,
-        attachment_filename=attachment_filename,
-        as_attachment=False
-    )
+    return {
+        'data': data,
+        'attachment_filename': attachment_filename,
+        'as_attachment': False
+    }
 
 
 @db_session

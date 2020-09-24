@@ -23,7 +23,9 @@ only = {
         'id',
         'title',
         'date',
-        'files'
+        'authors',
+        'files',
+        'key_topics'
     ],
     'File': [
         'id',
