@@ -27,6 +27,7 @@ class Item(db.Entity):
     ra_coder_initials = Optional(str)
     final_review = Required(bool, default=False)
     search_text = Optional(str)
+    authoring_organization_has_governance_authority = Optional(bool)
 
     # Relationships
     authors = Set('Author', table='authors_to_items')
@@ -43,10 +44,9 @@ class Author(db.Entity):
     id = PrimaryKey(int, auto=True)
     type_of_authoring_organization = Optional(str)
     authoring_organization = Required(str)
-    authoring_organization_sub_organization = Optional(str)
+    authoring_organization_sub_organization = Optional(str) # TODO
     international_national = Optional(str)
-    if_national_country_of_authoring_org = Optional(str)
-    authoring_organization_has_governance_authority = Optional(bool)
+    if_national_country_of_authoring_org = Optional(str)  # TODO
 
     # Relationships
     items = Set('Item', table='authors_to_items')
