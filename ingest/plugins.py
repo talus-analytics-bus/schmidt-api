@@ -692,32 +692,6 @@ class SchmidtPlugin(IngestPlugin):
         return self
 
     @db_session
-    def process_metadata(self, db):
-        """Create `metadata` table in database based on all data dictionaries
-        ingested from the data source.
-
-        """
-        # assign dd type to each dd
-        self.data_dictionary.loc[:, 'Type'] = 'Policy'
-        self.data_dictionary_plans.loc[:, 'Type'] = 'Plan'
-        self.data_dictionary_court_challenges.loc[:,
-                                                  'Type'] = 'Court_Challenge'
-
-        full_dd = pd.concat(
-            [
-                self.data_dictionary,
-                self.data_dictionary_plans,
-                self.data_dictionary_court_challenges,
-            ]
-        )
-
-        # upsert metadata records
-        self.create_metadata(db, full_dd)
-
-        return self
-
-
-    @db_session
     def create_metadata(self, db, full_dd):
         """Create metadata instances if they do not exist. If they do exist,
         update them.
