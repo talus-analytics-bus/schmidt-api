@@ -27,4 +27,4 @@
 
 4. **Start API server**
 
-    Do `run python application.py` from the project root directory. Check `localhost:5002` for the API server.
+    Do `pipenv run python application.py` from the project root directory. Check `localhost:5002` for the API server.
