@@ -205,6 +205,13 @@ class SchmidtPlugin(IngestPlugin):
                         elif field_datum.type == 'StrArray':
                             if value == '':
                                 value = list()
+                        elif field_datum.type == 'bool':
+                            if value == 'Yes':
+                                value = True
+                            elif value == 'No':
+                                value = False
+                            else:
+                                value = None
                         if key not in tag_fields:
                             if key in get_keys:
                                 upsert_get[key] = value

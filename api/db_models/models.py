@@ -27,7 +27,7 @@ class Item(db.Entity):
     ra_coder_initials = Optional(str)
     final_review = Required(bool, default=False)
     search_text = Optional(str)
-    authoring_organization_has_governance_authority = Optional(bool)
+    authoring_organization_has_governance_authority = Optional(bool, nullable=True)
 
     # Relationships
     authors = Set('Author', table='authors_to_items')
