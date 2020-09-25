@@ -302,9 +302,8 @@ class SchmidtPlugin(IngestPlugin):
 
     @db_session
     def update_authors(self, db):
-        """Update authors based on the items data and write to database,
-        linking to items as appropriate. There can be multiple authors for a
-        single item.
+        """Update authors based on the lookup table There can be multiple
+        authors for a single item.
 
         Parameters
         ----------
@@ -317,59 +316,33 @@ class SchmidtPlugin(IngestPlugin):
             Description of returned object.
 
         """
-        # throw error if items data not loaded
-        if not hasattr(self, 'item'):
-            print('[FATAL ERROR] Please `update_items` before other entities.')
-            sys.exit(1)
-
         # update authors
         print('\nUpdating authors...')
 
-        # get country information
-        self.lookup_country = self.client \
-            .worksheet(name='Lookup: Country (ISO)') \
-            .as_dataframe() \
-            .to_dict(orient='records')
+        # get list of authors from lookup table
+        self.author = self.client \
+            .worksheet(name='Lookup: Authoring Org') \
+            .as_dataframe()
 
-        # get author metadata
-        field_data = select(
-            i for i in db.Metadata
-            if i.linked_entity_name == 'Author'
-            and i.field != 'authoring_organization'  # get field
-        )
+        # define foreign key field
+        fkey_field = 'Item IDs'
 
-        # define linked entity fields and the data field on the linked entity
-        # they should pull from
-        linked_fields = {
-            'if_national_country_of_authoring_org': 'Country name'}
+        # for each funder
+        for d in self.author.to_dict(orient='records'):
 
-        # for each item
-        for d in self.item.to_dict(orient='records'):
-            author_defined = d['Authoring Organization'] != ''
-            item = db.Item[int(d['ID (automatically assigned)'])]
-            item_defined = item is not None
-            if not author_defined or not item_defined:
-                continue
-            else:
+            # get items this refers to
+            for fkey in d[fkey_field]:
+                item = db.Item.get(id=fkey)
+
+                # upsert author instance
                 upsert_get = {
-                    'authoring_organization': d['Authoring Organization']
+                    'id': d['ID (automatically assigned)'],
                 }
-                upsert_set = dict()
-                for field_datum in field_data:
-                    name = field_datum.source_name
-                    key = field_datum.field
-                    value = None
-                    if name in d:
-                        if key in linked_fields:
-                            value = ''
-                            for source_id in d[name]:
-                                record = next(
-                                    i for i in self.lookup_country if i['source_id'] == source_id)
-                                value = record[linked_fields[key]]
-                            pass
-                        else:
-                            value = d[name]
-                    upsert_set[key] = value
+                upsert_set = {
+                    'authoring_organization': d['Authoring Organization Name'],
+                    'type_of_authoring_organization': d['Type of Authoring Organization'],
+                    'international_national': d['Authoring Org- International/National'],
+                }
 
                 # upsert implied author
                 action, upserted = upsert(
@@ -378,11 +351,84 @@ class SchmidtPlugin(IngestPlugin):
                     set=upsert_set
                 )
 
-                # link item to author
-                item.authors = [upserted]
+                # add author to item's author list
+                item.authors.add(upserted)
+                commit()
 
-        print('Authors updated.')
+        print('Funders updated.')
         return self
+
+
+
+
+
+
+        # # throw error if items data not loaded
+        # if not hasattr(self, 'item'):
+        #     print('[FATAL ERROR] Please `update_items` before other entities.')
+        #     sys.exit(1)
+        #
+        # # update authors
+        # print('\nUpdating authors...')
+        #
+        # # get country information
+        # self.lookup_country = self.client \
+        #     .worksheet(name='Lookup: Country (ISO)') \
+        #     .as_dataframe() \
+        #     .to_dict(orient='records')
+        #
+        # # get author metadata
+        # field_data = select(
+        #     i for i in db.Metadata
+        #     if i.linked_entity_name == 'Author'
+        #     and i.field != 'authoring_organization'  # get field
+        # )
+        #
+        # # define linked entity fields and the data field on the linked entity
+        # # they should pull from
+        # linked_fields = {
+        #     'if_national_country_of_authoring_org': 'Country name'}
+        #
+        # # for each item
+        # for d in self.item.to_dict(orient='records'):
+        #     author_defined = d['Authoring Organization'] != ''
+        #     item = db.Item[int(d['ID (automatically assigned)'])]
+        #     item_defined = item is not None
+        #     if not author_defined or not item_defined:
+        #         continue
+        #     else:
+        #         upsert_get = {
+        #             'authoring_organization': d['Authoring Organization']
+        #         }
+        #         upsert_set = dict()
+        #         for field_datum in field_data:
+        #             name = field_datum.source_name
+        #             key = field_datum.field
+        #             value = None
+        #             if name in d:
+        #                 if key in linked_fields:
+        #                     value = ''
+        #                     for source_id in d[name]:
+        #                         record = next(
+        #                             i for i in self.lookup_country if i['source_id'] == source_id)
+        #                         value = record[linked_fields[key]]
+        #                     pass
+        #                 else:
+        #                     value = d[name]
+        #             upsert_set[key] = value
+        #
+        #         # upsert implied author
+        #         action, upserted = upsert(
+        #             db.Author,
+        #             get=upsert_get,
+        #             set=upsert_set
+        #         )
+        #
+        #         # link item to author
+        #         item.authors = [upserted]
+        #
+        # print('Authors updated.')
+        # return self
 
     @db_session
     def update_funders(self, db):
@@ -420,11 +466,13 @@ class SchmidtPlugin(IngestPlugin):
 
                 # upsert funder instance
                 upsert_get = {
+                    'id': d['ID (automatically assigned)'],
+                }
+                upsert_set = {
                     'name': d['Funder']
                 }
-                upsert_set = dict()
 
-                # upsert implied author
+                # upsert implied funder
                 action, upserted = upsert(
                     db.Funder,
                     get=upsert_get,
@@ -435,6 +483,7 @@ class SchmidtPlugin(IngestPlugin):
                 item.funders.add(upserted)
                 commit()
 
+        print('Funders updated.')
         return self
 
     @db_session
