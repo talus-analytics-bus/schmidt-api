@@ -24,9 +24,10 @@ only = {
         'title',
         'type_of_record',
         'date',
+        'funders',
         'authors',
         'files',
-        'key_topics'
+        'key_topics',
         'authoring_organization_has_governance_authority',
     ],
     'File': [
