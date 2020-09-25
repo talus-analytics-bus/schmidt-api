@@ -336,7 +336,6 @@ class SchmidtPlugin(IngestPlugin):
 
         # for each funder
         for d in self.author.to_dict(orient='records'):
-
             # get items this refers to
             for fkey in d[fkey_field]:
                 item = db.Item.get(id=fkey)
@@ -350,6 +349,10 @@ class SchmidtPlugin(IngestPlugin):
                     'type_of_authoring_organization': d['Type of Authoring Organization'],
                     'international_national': d['Authoring Org- International/National'],
                 }
+                if d['Country name'] != '':
+                    upsert_set['if_national_country_of_authoring_org'] = d['Country name'][0]
+                if d['ISO2'] != '':
+                    upsert_set['if_national_iso2_of_authoring_org'] = d['ISO2'][0]
 
                 # upsert implied author
                 action, upserted = upsert(

@@ -46,7 +46,8 @@ class Author(db.Entity):
     authoring_organization = Required(str)
     authoring_organization_sub_organization = Optional(str) # TODO
     international_national = Optional(str)
-    if_national_country_of_authoring_org = Optional(str)  # TODO
+    if_national_country_of_authoring_org = Optional(str, nullable=True)  
+    if_national_iso2_of_authoring_org = Optional(str, nullable=True)
 
     # Relationships
     items = Set('Item', table='authors_to_items')
