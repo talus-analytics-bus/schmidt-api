@@ -167,10 +167,14 @@ class SchmidtPlugin(IngestPlugin):
         # list tags that use the Tag entity
         tag_fields = ('key_topics',)
 
+        # list tags that are linked entities to be tagged after the fact
+        linked_fields = ('funders')
+
         # get database fields for items to write
         field_data = select(
             i for i in db.Metadata
             if i.entity_name == 'Item'
+            and i.field not in linked_fields
         )
 
         # parse items into instances to write to database
@@ -382,8 +386,7 @@ class SchmidtPlugin(IngestPlugin):
 
     @db_session
     def update_funders(self, db):
-        """Update events based on the items data and write to database,
-        linking to items as appropriate.
+        """Update events based on the lookup table data.
 
         Parameters
         ----------
@@ -396,44 +399,42 @@ class SchmidtPlugin(IngestPlugin):
             Description of returned object.
 
         """
-        # throw error if items data not loaded
-        if not hasattr(self, 'item'):
-            print('[FATAL ERROR] Please `update_items` before other entities.')
-            sys.exit(1)
 
-        # update authors
+        # update funders
         print('\nUpdating funders...')
 
-        # for each item
-        for d in self.item.to_dict(orient='records'):
-            funder_defined = d['Funder'] != ''
-            item = db.Item[int(d['ID (automatically assigned)'])]
-            item_defined = item is not None
-            if not funder_defined or not item_defined:
-                continue
-            else:
-                funder_list = d['Funder']
-                if not iterable(funder_list):
-                    funder_list = list(set([funder_list]))
-                all_upserted = list()
-                for funder in funder_list:
-                    upsert_get = {
-                        'name': funder
-                    }
-                    upsert_set = dict()
+        # get list of funders from lookup table
+        self.funder = self.client \
+            .worksheet(name='Lookup: Funder') \
+            .as_dataframe()
 
-                    # upsert implied author
-                    action, upserted = upsert(
-                        db.Funder,
-                        get=upsert_get,
-                        set=upsert_set
-                    )
-                    all_upserted.append(upserted)
+        # define foreign key field
+        fkey_field = 'Item IDs'
 
-                # link item to author
-                item.funders = all_upserted
+        # for each funder
+        for d in self.funder.to_dict(orient='records'):
 
-        print('Funders updated.')
+            # get items this refers to
+            for fkey in d[fkey_field]:
+                item = db.Item.get(id=fkey)
+
+                # upsert funder instance
+                upsert_get = {
+                    'name': d['Funder']
+                }
+                upsert_set = dict()
+
+                # upsert implied author
+                action, upserted = upsert(
+                    db.Funder,
+                    get=upsert_get,
+                    set=upsert_set
+                )
+
+                # add funder to item's funder list
+                item.funders.add(upserted)
+                commit()
+
         return self
 
     @db_session
