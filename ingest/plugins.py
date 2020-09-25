@@ -299,7 +299,8 @@ class SchmidtPlugin(IngestPlugin):
     @db_session
     def update_authors(self, db):
         """Update authors based on the items data and write to database,
-        linking to items as appropriate.
+        linking to items as appropriate. There can be multiple authors for a
+        single item.
 
         Parameters
         ----------
