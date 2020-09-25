@@ -366,12 +366,14 @@ def get_search(
                         )
 
             # pdf?
-            if any(cur_search_text in scraped_text for scraped_text in d.files.scraped_text):
-                at_least_one = True
-                snippets['files'] = 'PDF file contains text match'
-            data_snippets.append(
-                snippets if at_least_one else dict()
-            )
+            for file in d.files:
+                if cur_search_text in file.scraped_text.lower():
+                    at_least_one = True
+                    snippets['files'] = 'PDF file contains text match'
+                data_snippets.append(
+                    snippets if at_least_one else dict()
+                )
+                break
 
     # if preview: return counts of items and matching instances
     data = None
