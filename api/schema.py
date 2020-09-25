@@ -367,7 +367,8 @@ def get_search(
 
             # pdf?
             for file in d.files:
-                if cur_search_text in file.scraped_text.lower():
+                if file.scraped_text is not None and \
+                        cur_search_text in file.scraped_text.lower():
                     at_least_one = True
                     snippets['files'] = 'PDF file contains text match'
                 break

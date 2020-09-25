@@ -22,10 +22,12 @@ only = {
     'Item': [
         'id',
         'title',
+        'description',
         'type_of_record',
         'date',
         'funders',
         'authors',
+        'events',
         'files',
         'key_topics',
         'authoring_organization_has_governance_authority',
