@@ -370,10 +370,12 @@ def get_search(
                 if cur_search_text in file.scraped_text.lower():
                     at_least_one = True
                     snippets['files'] = 'PDF file contains text match'
-                data_snippets.append(
-                    snippets if at_least_one else dict()
-                )
                 break
+
+            # append results
+            data_snippets.append(
+                snippets if at_least_one else dict()
+            )
 
     # if preview: return counts of items and matching instances
     data = None
@@ -508,9 +510,7 @@ def apply_filters_to_items(
         items = select(
             i
             for i in items
-            for file in i.files
-            if file.scraped_text is not None
-            and search_text.lower() in i.search_text.lower()
+            if search_text.lower() in i.search_text.lower()
         )
 
     return items
