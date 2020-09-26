@@ -233,6 +233,7 @@ def get_file(id: int, get_thumb: bool):
 
 
 @db_session
+@cached
 def get_search(
     page: int,
     pagesize: int,
