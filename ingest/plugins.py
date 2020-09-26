@@ -664,39 +664,39 @@ class SchmidtPlugin(IngestPlugin):
                                             pdf = pdfplumber.open(
                                                 BytesIO(file))
 
-                                            # for debug: get first page only
-                                            # TODO revert
-                                            first_page = pdf.pages[0]
-                                            scraped_text = first_page.extract_text()
-
-                                            # scraped_text = ''
+                                            # # for debug: get first page only
+                                            # # TODO revert
                                             # first_page = pdf.pages[0]
-                                            # for curpage in pdf.pages:
-                                            #     page_scraped_text = curpage.extract_text()
-                                            #     if page_scraped_text is not None:
-                                            #         scraped_text += page_scraped_text
-                                            upsert_set['scraped_text'] = scraped_text
+                                            # scraped_text = first_page.extract_text()
+
+                                            scraped_text = ''
+                                            for curpage in pdf.pages:
+                                                page_scraped_text = curpage.extract_text()
+                                                if page_scraped_text is not None:
+                                                    scraped_text += page_scraped_text
+                                            upsert_set['scraped_text'] = scraped_text.replace('\x00','')
                                         except Exception as e:
                                             print(
                                                 'File does not appear to be PDF, skipping scraping: ' + file['filename'])
 
-                                    # add file to s3
-                                    response = s3.put_object(
-                                        Body=file,
-                                        Bucket=S3_BUCKET_NAME,
-                                        Key=file_key,
-                                    )
+                                    if not file_already_in_s3:
+                                        # add file to s3
+                                        response = s3.put_object(
+                                            Body=file,
+                                            Bucket=S3_BUCKET_NAME,
+                                            Key=file_key,
+                                        )
 
-                                    # set to public
-                                    response2 = s3.put_object_acl(
-                                        ACL='public-read',
-                                        Bucket=S3_BUCKET_NAME,
-                                        Key=file_key,
-                                    )
+                                        # set to public
+                                        response2 = s3.put_object_acl(
+                                            ACL='public-read',
+                                            Bucket=S3_BUCKET_NAME,
+                                            Key=file_key,
+                                        )
 
-                                    field = file_to_check['field']
-                                    upsert_set[field] = 'https://schmidt-storage.s3-us-west-1.amazonaws.com/' + file_key
-                                    print('Added file to s3: ' + file_key)
+                                        field = file_to_check['field']
+                                        upsert_set[field] = 'https://schmidt-storage.s3-us-west-1.amazonaws.com/' + file_key
+                                        print('Added file to s3: ' + file_key)
 
                     # upsert files
                     action, upserted = upsert(

@@ -272,23 +272,26 @@ def get_search(
     )
 
     # if search text not null and not preview: get matching instances by class
-    other_instances = get_matching_instances(
-        filtered_items,
-        search_text,
-        explain_results  # TODO dynamically
-    )
+    other_instances = []
+    # other_instances = get_matching_instances(
+    #     filtered_items,
+    #     search_text,
+    #     explain_results  # TODO dynamically
+    # )
 
-    # apply search text to items, if any
-    searched_items = apply_search_to_items(
-        filtered_items, search_text, explain_results, preview
-    )
+    # # apply search text to items, if any
+    # searched_items = apply_search_to_items(
+    #     filtered_items, search_text, explain_results, preview
+    # )
 
     # get filter value counts for current set
-    filter_counts = get_metadata_value_counts(items=searched_items)
+    filter_counts = get_metadata_value_counts(items=filtered_items)
+    # filter_counts = get_metadata_value_counts(items=searched_items)
 
     # order items
     ordered_items = apply_ordering_to_items(
-        searched_items, order_by, is_desc, search_text
+        filtered_items, order_by, is_desc, search_text
+        # searched_items, order_by, is_desc, search_text
     )
 
     # paginate items
@@ -368,7 +371,7 @@ def get_search(
             # pdf?
             for file in d.files:
                 if file.scraped_text is not None and \
-                        cur_search_text in file.scraped_text.lower():
+                        cur_search_text in file.scraped_text:
                     at_least_one = True
                     snippets['files'] = 'PDF file contains text match'
                 break
@@ -511,7 +514,8 @@ def apply_filters_to_items(
         items = select(
             i
             for i in items
-            if search_text.lower() in i.search_text.lower()
+            if search_text.lower() in i.search_text
+            # if search_text.lower() in i.search_text.lower()
         )
 
     return items
@@ -548,7 +552,8 @@ def apply_search_to_items(
         search_items = select(
             search_item
             for search_item in search_items
-            if cur_search_text in search_item.search_text.lower()
+            if cur_search_text in search_item.search_text
+            # if cur_search_text in search_item.search_text.lower()
         )
 
     return search_items
