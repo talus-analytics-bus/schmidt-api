@@ -300,10 +300,14 @@ class SchmidtPlugin(IngestPlugin):
                     for linked_entity in getattr(i, entity_name)
                     if getattr(linked_entity, linked_field) is not None
                 )[:][:]
-                search_text += " - ".join(linked_values) + ' '
+                str_to_concat = " - ".join(linked_values) + ' '
+                if linked_field == 'scraped_text':
+                    str_to_concat = str_to_concat[0:100000]
+
+                search_text += str_to_concat
 
             # update search text
-            i.search_text = search_text
+            i.search_text = search_text.lower()
             commit()
         print('Complete.')
 
