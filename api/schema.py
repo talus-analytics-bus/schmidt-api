@@ -273,12 +273,11 @@ def get_search(
     )
 
     # if search text not null and not preview: get matching instances by class
-    other_instances = []
-    # other_instances = get_matching_instances(
-    #     filtered_items,
-    #     search_text,
-    #     explain_results  # TODO dynamically
-    # )
+    other_instances = get_matching_instances(
+        filtered_items,
+        search_text,
+        explain_results  # TODO dynamically
+    ) if preview else []
 
     # # apply search text to items, if any
     # searched_items = apply_search_to_items(
@@ -389,7 +388,8 @@ def get_search(
         # n_items = count(ordered_items)
         data = {
             'n_items': n_items,
-            'other_instances': other_instances
+            'other_instances': other_instances,
+            'search_text': search_text
         }
     else:
         # otherwise: return paginated items and details
@@ -707,47 +707,48 @@ def get_metadata_value_counts(items):
             count(i),
         )
         for i in items
-    )[:][:]
+    ).order_by(lambda x, y: desc(y))[:][:]
 
     # Authors
     authors = select(
         (author.authoring_organization, count(i), author.id)
         for i in items
         for author in i.authors
-    )[:][:]
+    ).order_by(lambda x, y, z: desc(y))[:][:]
+
 
     # Author types
     author_types = select(
         (author.type_of_authoring_organization, count(i))
         for i in items
         for author in i.authors
-    )[:][:]
+    ).order_by(lambda x, y: desc(y))[:][:]
 
     # Funder names
     funders = select(
         (funder.name, count(i))
         for i in items
         for funder in i.funders
-    )[:][:]
+    ).order_by(lambda x, y: desc(y))[:][:]
 
     # Years
     years = select(
         (i.date.year, count(i))
         for i in items
-    )[:][:]
+    ).order_by(lambda x, y: desc(y))[:][:]
 
     # Events
     events = select(
         (event.name, count(i))
         for i in items
         for event in i.events
-    )[:][:]
+    ).order_by(lambda x, y: desc(y))[:][:]
 
     # Item type
     types_of_record = select(
         (i.type_of_record, count(i))
         for i in items
-    )[:][:]
+    ).order_by(lambda x, y: desc(y))[:][:]
 
 
     output = {
