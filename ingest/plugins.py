@@ -199,7 +199,7 @@ class SchmidtPlugin(IngestPlugin):
                         if field_datum.type == 'date':
                             if value != '':
                                 value = datetime.strptime(
-                                    value, '%Y-%M-%d').date()
+                                    value, '%Y-%m-%d').date()
                             else:
                                 value = None
                         elif field_datum.type == 'StrArray':
