@@ -509,7 +509,7 @@ def apply_filters_to_items(
             )
 
     # apply search text
-    if search_text is not None:
+    if search_text is not None and search_text != '':
         items = select(
             i
             for i in items
