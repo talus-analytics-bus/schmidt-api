@@ -340,6 +340,10 @@ class SchmidtPlugin(IngestPlugin):
 
         # for each funder
         for d in self.author.to_dict(orient='records'):
+            # skip if no name
+            if d['Authoring Organization Name'] is None or d['Authoring Organization Name'] == '':
+                continue
+
             # get items this refers to
             for fkey in d[fkey_field]:
                 item = db.Item.get(id=fkey)
