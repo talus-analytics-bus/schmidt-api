@@ -299,7 +299,7 @@ def get_search(
 
     # if applicable, get explanation for search results (snippets)
     data_snippets = list()
-    if not preview and explain_results and search_text is not None:
+    if not preview and explain_results and search_text is not None and search_text != '':
         search_items_with_snippets = list()
         cur_search_text = search_text.lower() if search_text is not None \
             else ''
@@ -510,6 +510,7 @@ def apply_filters_to_items(
 
     # apply search text
     if search_text is not None and search_text != '':
+        print('DOING SEARCH')
         items = select(
             i
             for i in items
@@ -546,7 +547,7 @@ def apply_search_to_items(
     """
 
     # apply search text
-    if search_text is not None:
+    if search_text is not None and search_text != '':
         cur_search_text = search_text.lower()
         search_items = select(
             search_item
@@ -582,7 +583,7 @@ def apply_ordering_to_items(
     # TODO implement col ordering (relevance is done for now)
     by_relevance = order_by == 'relevance'
     item_ids_by_relevance = list()
-    if by_relevance and search_text is not None:
+    if by_relevance and search_text is not None and search_text != '':
         cur_search_text = search_text.lower()
         for d in items:
             relevance = None
@@ -634,7 +635,7 @@ def get_matching_instances(
     """
 
     # if blank, return nothing
-    if search_text is None:
+    if search_text is None or search_text == '':
         return {}
     else:
         matching_instances = {}
