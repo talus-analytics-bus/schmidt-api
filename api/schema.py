@@ -36,8 +36,6 @@ def cached(func):
 
         key = str(kwargs)
         if key in cache:
-            print('key')
-            print(key)
             return cache[key]
 
         results = func(*func_args, **kwargs)
