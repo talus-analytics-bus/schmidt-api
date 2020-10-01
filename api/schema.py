@@ -851,7 +851,7 @@ def assign_field_value_to_export_row(row, d, field):
             else:
                 return 'No'
         else:
-            return val_tmp
+            return val_tmp if val_tmp is not None else ''
 
     linked = field.linked_entity_name != field.entity_name
     if not linked:
@@ -859,10 +859,10 @@ def assign_field_value_to_export_row(row, d, field):
     else:
         linked_field_name = field.linked_entity_name.lower() + 's'
         linked_instances = getattr(d, linked_field_name)
-        strs = set()
+        strs = list()
         for dd in linked_instances:
-            strs.add(get_val(dd, field))
-        row[field.colgroup][field.display_name] = "; ".join(strs)
+            strs.append(get_val(dd, field))
+        row[field.colgroup][field.display_name] = "\n".join(strs)
 
 
 @db_session
