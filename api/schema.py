@@ -127,7 +127,8 @@ def get_item(
                     (
                         tag in item.key_topics
                         and tag in i.key_topics
-                    )
+                    ),
+                    i in item.items
                 )
                 for i in db.Item
                 for author in db.Author
@@ -138,11 +139,12 @@ def get_item(
                 ) or (
                     tag in item.key_topics
                     and tag in i.key_topics
+                ) or (
+                    i in item.items
                 ))
                 and i != item
-
             )
-            related = all_related.page(page, pagesize=pagesize)
+            related = all_related.order_by(lambda a, b, c, d: desc(d)).page(page, pagesize=pagesize)
             total = count(all_related)
 
         # return all data
@@ -160,10 +162,13 @@ def get_item(
                     related_objects=True,
                 )
                 why = list()
-                if d[1]:
-                    why.append('also by this authoring org.')
-                if d[2]:
-                    why.append('similar topic')
+                if d[3]:
+                    why.append('directly related')
+                if not d[3]:
+                    if d[1]:
+                        why.append('also by this authoring org.')
+                    if d[2]:
+                        why.append('similar topic')
                 datum['why'] = why
                 related_dicts.append(datum)
 
@@ -366,6 +371,11 @@ def get_search(
                             cur_snippet
                         )
 
+            # custom tags?
+            if any(search_text in dd.lower() for dd in d.tags.name):
+                at_least_one = True
+                snippets['tags'] = 'Search tags contain text match'
+
             # pdf?
             for file in d.files:
                 if file.scraped_text is not None and \
@@ -510,7 +520,6 @@ def apply_filters_to_items(
 
     # apply search text
     if search_text is not None and search_text != '':
-        print('DOING SEARCH')
         items = select(
             i
             for i in items
