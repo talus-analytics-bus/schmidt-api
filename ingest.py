@@ -24,8 +24,9 @@ if __name__ == "__main__":
     client.update_funders(db)
     client.update_authors(db)
     client.update_events(db)
-    client.update_files(db)
+    client.update_files(db, scrape_text=True)
     client.update_item_search_text(db)
+    client.clean_tags(db)
 
     # exit
     sys.exit(0)

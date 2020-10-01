@@ -28,12 +28,16 @@ class Item(db.Entity):
     final_review = Required(bool, default=False)
     search_text = Optional(str)
     authoring_organization_has_governance_authority = Optional(bool, nullable=True)
+    source_id = Optional(str)
+    tags = Set('Tag')
 
     # Relationships
     authors = Set('Author', table='authors_to_items')
     funders = Set('Funder', table='funders_to_items')
     events = Set('Event', table='events_to_items')
     files = Set('File', table='files_to_items')
+    items = Set('Item', table='items_to_items', reverse="_items")
+    _items = Set('Item', table='items_to_items')
 
 
 class Author(db.Entity):
@@ -46,7 +50,7 @@ class Author(db.Entity):
     authoring_organization = Required(str)
     authoring_organization_sub_organization = Optional(str) # TODO
     international_national = Optional(str)
-    if_national_country_of_authoring_org = Optional(str, nullable=True)  
+    if_national_country_of_authoring_org = Optional(str, nullable=True)
     if_national_iso2_of_authoring_org = Optional(str, nullable=True)
 
     # Relationships
@@ -131,4 +135,5 @@ class Tag(db.Entity):
     field = Required(str)
 
     # Relationships
-    _key_topics = Set('Item')
+    _key_topics = Set('Item', reverse='key_topics', table="key_topics_to_items")
+    _tags = Set('Item', reverse='tags', table="tags_to_items")

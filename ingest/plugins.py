@@ -165,7 +165,7 @@ class SchmidtPlugin(IngestPlugin):
             .as_dataframe()
 
         # list tags that use the Tag entity
-        tag_fields = ('key_topics',)
+        tag_fields = ('key_topics', 'tags')
 
         # list tags that are linked entities to be tagged after the fact
         linked_fields = ('funders')
@@ -177,13 +177,21 @@ class SchmidtPlugin(IngestPlugin):
             and i.field not in linked_fields
         )
 
+        # store link items
+        linked_items_by_id = defaultdict(set)
+
         # parse items into instances to write to database
         item_dicts = self.item.to_dict(orient="records")
         for d in self.item.to_dict(orient="records"):
+            if d['Linked Record ID'] != '':
+                for source_id in d['Linked Record ID']:
+                    linked_items_by_id[
+                        d['ID (automatically assigned)']
+                    ].add(source_id)
 
             get_keys = ('id')
             upsert_get = dict()
-            upsert_set = dict()
+            upsert_set = {'source_id': d['source_id']}
             upsert_tag = dict()
 
             for field_datum in field_data:
@@ -241,6 +249,16 @@ class SchmidtPlugin(IngestPlugin):
                     getattr(upserted, field).add(upserted_tag)
                     commit()
 
+        # Link related items
+        for a_id, b_ids in linked_items_by_id.items():
+            a = db.Item[a_id]
+            for b_id in b_ids:
+                b = db.Item.get(source_id=b_id)
+                a.items.add(b)
+            commit()
+
+
+
         print('Items updated.')
         return self
 
@@ -269,6 +287,7 @@ class SchmidtPlugin(IngestPlugin):
         )
         fields_tag = (
             'key_topics',
+            'tags',
         )
         linked_fields_str = (
             'authors.authoring_organization',
@@ -310,6 +329,23 @@ class SchmidtPlugin(IngestPlugin):
             i.search_text = search_text.lower()
             commit()
         print('Complete.')
+
+    @db_session
+    def clean_tags(self, db):
+        """Delete tag instances that aren't used
+
+        """
+        print('\nCleaning tags...')
+
+        # delete tags that are not used by any items
+        delete_tags = select(
+            i for i in db.Tag
+            if len(i._key_topics) == 0
+            and len(i._tags) == 0
+        )
+        delete_tags.delete()
+        commit()
+        print('Tags cleaned.')
 
     @db_session
     def update_authors(self, db):
@@ -563,7 +599,7 @@ class SchmidtPlugin(IngestPlugin):
         return self
 
     @db_session
-    def update_files(self, db):
+    def update_files(self, db, scrape_text=True):
         """Update files based on the items data and write to database,
         linking to items as appropriate.
 
@@ -667,7 +703,7 @@ class SchmidtPlugin(IngestPlugin):
 
                                     # scrape PDF text unless file is not a PDF or
                                     # unless it is not flagged as `scrape`
-                                    if scrape:
+                                    if scrape and scrape_text:
                                         try:
                                             pdf = pdfplumber.open(
                                                 BytesIO(file))
