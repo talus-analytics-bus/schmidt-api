@@ -68,19 +68,12 @@ class SchmidtExportPlugin(ExcelExport):
         self.sheet_settings = []
         tabs = (
             {
-                's': 'Policy',
-                'p': 'Policy adoption data',
-                'intro_text': 'The table below lists the adoption status of indicators and subindicators of HIV policy implementation for different countries as downloaded from the HIV Policy Lab website.',
+                's': 'Item',
+                'p': 'Bookmarked items',
+                'intro_text': 'The table below lists metadata for bookmarked items from the Health Security Net\'s Global Health Security Library.',
                 'data': self.default_data_getter,
                 'legend': self.default_data_getter_legend
             },
-            {
-                's': 'HIV and ART data',
-                'p': 'HIV and ART data',
-                'intro_text': 'The table below lists human immunodeficiency virus (HIV) incidence and antiretroviral therapy (ART) metrics for different countries as downloaded from the HIV Policy Lab website. Data are provided by UNAIDS based on data reported in the Global AIDS Update 2020 (covering through 2019).',
-                'data': self.default_data_getter_epi,
-                'legend': self.default_data_getter_legend_epi
-            }
         )
         for tab in tabs:
             self.sheet_settings += [
@@ -174,56 +167,8 @@ class SchmidtExportPlugin(ExcelExport):
         return self
 
     def default_data_getter(self, class_name: str = 'Policy', filters: dict = None):
-
-        db = self.db
-        # get observations for indicators and subindicators, applying filters
-        export_data = schema.get_export_data(filters=self.filters)
-
-        fields = ['Country', 'Indicator or subindicator?',
-                  'Indicator / Subindicator name', 'Year', 'Adoption level']
-
-        rows = []
-        colgroup = 'Indicator and subindicator data'
-
-        # getting most recent data?
-        year = self.filters['year'][0]
-        is_recent = year == 'recent'
-        for d in export_data:
-            row = defaultdict(dict)
-            i = 0
-            ind_or_sub = d[1].split('_')[0].capitalize()
-            for field in fields:
-                if field == 'Indicator or subindicator?':
-                    row[colgroup][field] = ind_or_sub
-                elif field == 'Adoption level':
-                    value = ''
-                    if d[i] is None:
-                        value = 'No data'
-                    elif d[i] == 1:
-                        value = 'Adopted'
-                    elif d[i] == .5:
-                        value = 'Partially adopted'
-                    elif d[i] == 0:
-                        value = 'Not adopted'
-                    row[colgroup][field] = value
-                    i += 1
-                elif field == 'Indicator / Subindicator name':
-                    arr = d[i].split('_')
-                    row[colgroup][field] = arr[1] + ' - ' + arr[2]
-                    i += 1
-                elif field == 'Country':
-                    row['Country'][field] = d[i]
-                    i += 1
-                elif field == 'Year':
-                    show_recent = ind_or_sub == 'Indicator' and is_recent
-                    row[colgroup][field] = d[i] if not show_recent else \
-                        'Most recent'
-                    i += 1
-                else:
-                    row[colgroup][field] = d[i]
-                    i += 1
-            rows.append(row)
-        return rows
+        # get items, applying filters (usually a list of IDs of items to return)
+        return schema.get_export_data(filters=self.filters)
 
         def get_joined_entity(main_entity, joined_entity_string):
             """Given a main entity class and a string of joined entities like
@@ -420,6 +365,7 @@ class SchmidtExportPlugin(ExcelExport):
         return rows
 
     def default_data_getter_legend(self, class_name: str = 'Policy'):
+        return schema.get_export_legend_data()
         # DEBUG
         return [
             {

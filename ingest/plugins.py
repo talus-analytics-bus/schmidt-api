@@ -748,12 +748,20 @@ class SchmidtPlugin(IngestPlugin):
                         get=upsert_get,
                         set=upsert_set
                     )
+                    commit()
 
                     # add to list of files for item
                     all_upserted.append(upserted)
 
                 # link item to files
                 item.files = all_upserted
+
+        # assign s3 permalinks
+        api_url = 'https://schmidt-api.talusanalytics.com/get/file/'
+        for file in select(i for i in db.File):
+            file.s3_permalink = \
+                f'''{api_url}{file.filename.replace('?', '')}?id={file.id}'''
+            commit()
 
         print('Files updated.')
         return self

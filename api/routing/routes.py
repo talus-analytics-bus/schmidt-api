@@ -116,6 +116,24 @@ body_model = api.schema_model('Body_Model', {
     'type': 'object'
 })
 
+def get_int_list(str_list):
+    """Given list of strings, return integer representations as list.
+
+    Parameters
+    ----------
+    str_list : type
+        Description of parameter `str_list`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+    def to_int(x):
+        return int(x)
+    return list(map(to_int, str_list))
+
 
 @api.route("/get/items", methods=["GET"])
 class Items(Resource):
@@ -130,10 +148,8 @@ class Items(Resource):
     @db_session
     @format_response
     def get(self):
-        ids = request.args.getlist('ids')
-        def to_int(x):
-            return int(x)
-        ids = list(map(to_int, ids))
+        # get ids of items from URL params
+        ids = get_int_list(request.args.getlist('ids'))
 
         data = schema.get_items(
             page=int(request.args.get('page', 1)),
@@ -263,18 +279,22 @@ class Filter_Counts(Resource):
 
 
 # XLSX download of items data
-@api.route("/export", methods=["POST"])
+@api.route("/export/excel", methods=["GET"])
 class Export(Resource):
     """Return XLSX file of data with specified filters applied."""
     parser = api.parser()
 
     @api.doc(parser=parser)
     @db_session
-    def post(self):
+    def get(self):
         params = request.args
-        filters = request.json.get('filters')
 
-        # filters = body.filters if bool(body.filters) == True else None
+        # get ids of items from URL params
+        ids = get_int_list(params.getlist('ids'))
+
+        filters = {'id': ids}
+        # filters = request.json.get('filters')
+
         send_file_args = schema.export(
             filters=filters,
         )

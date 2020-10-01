@@ -22,6 +22,7 @@ from flask import send_file
 from .db_models import db
 from . import search
 from .export import SchmidtExportPlugin
+from .utils import jsonify_response, DefaultOrderedDict
 
 # pretty printing: for printing JSON objects legibly
 pp = pprint.PrettyPrinter(indent=4)
@@ -486,6 +487,13 @@ def apply_filters_to_items(
                     for j_linked_author_type in i_linked_author_type.authors
                     if str(j_linked_author_type.type_of_authoring_organization) in allowed_values
                 )
+            elif entity_name == 'funder' and linked_field == 'name':
+                items = select(
+                    i_linked_funder
+                    for i_linked_funder in items
+                    for j_linked_funder in i_linked_funder.funders
+                    if str(j_linked_funder.name) in allowed_values
+                )
             else:
                 items = select(
                     i_linked
@@ -786,15 +794,143 @@ def export(filters: dict = None):
         'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
     # Create Excel export file
-    genericExcelExport = SchmidtExportPlugin(db, filters, class_name='Item')
-    content = genericExcelExport.build()
+    export_instance = SchmidtExportPlugin(db, filters, class_name='Item')
+    content = export_instance.build()
 
     # return the file
     today = date.today()
-    attachment_filename = f'''Pandemic Repository - Data Export {str(today)}.xlsx'''
+    attachment_filename = f'''Health Security Net - Data Export.xlsx'''
 
     return {
         'content': content,
         'attachment_filename': attachment_filename,
         'as_attachment': True
     }
+
+def assign_field_value_to_export_row(row, d, field):
+    """Given the row dict and the `field` info, assigns the value to the row,
+    accounting for linked entities, etc., from the datum `d`
+
+    Parameters
+    ----------
+    row : type
+        Description of parameter `row`.
+    field : type
+        Description of parameter `field`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+    def get_val(d, field):
+        """Get formatted value of field based on type.
+
+        Parameters
+        ----------
+        d : type
+            Description of parameter `d`.
+        field : type
+            Description of parameter `field`.
+
+        Returns
+        -------
+        type
+            Description of returned object.
+
+        """
+        val_tmp = getattr(d, field.field)
+
+        # parse bool as yes/no
+        if field.type == 'bool':
+            if val_tmp is None:
+                return ''
+            elif val_tmp == True:
+                return 'Yes'
+            else:
+                return 'No'
+        else:
+            return val_tmp
+
+    linked = field.linked_entity_name != field.entity_name
+    if not linked:
+        row[field.colgroup][field.display_name] = get_val(d, field)
+    else:
+        linked_field_name = field.linked_entity_name.lower() + 's'
+        linked_instances = getattr(d, linked_field_name)
+        strs = set()
+        for dd in linked_instances:
+            strs.add(get_val(dd, field))
+        row[field.colgroup][field.display_name] = "; ".join(strs)
+
+
+@db_session
+@jsonify_response
+def get_export_data(filters: dict = None):
+    """Returns items that match the filters for export.
+
+    Parameters
+    ----------
+    filters : dict
+        Description of parameter `filters`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+
+    # get data fields to be exported
+    export_fields = select(
+        i for i in db.Metadata
+        if i.entity_name == 'Item'
+        and i.export
+    ).order_by(db.Metadata.order)
+
+    # get items to be exported
+    items = select(
+        i for i in db.Item
+        if i.id in filters['id']
+    )
+
+    # get rows
+    rows = list()
+
+    # format data for export
+    for d in items:
+        row = DefaultOrderedDict(DefaultOrderedDict)
+        for field in export_fields:
+            assign_field_value_to_export_row(row, d, field)
+
+        rows.append(row)
+
+    return rows
+
+@db_session
+@jsonify_response
+def get_export_legend_data():
+    """Returns legend entry data for all fields exported in XLSX file.
+
+    """
+    # get data fields to be exported
+    export_fields = select(
+        i for i in db.Metadata
+        if i.entity_name == 'Item'
+        and i.export
+    ).order_by(db.Metadata.order)
+
+    # format data for export
+    def_row = DefaultOrderedDict(DefaultOrderedDict)
+    val_row = DefaultOrderedDict(DefaultOrderedDict)
+    for field in export_fields:
+        # definition
+        def_row[field.colgroup][field.display_name] = \
+            field.definition
+
+        # possible values
+        val_row[field.colgroup][field.display_name] = \
+            field.possible_values
+
+    return [def_row, val_row]

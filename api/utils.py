@@ -2,18 +2,20 @@
 import functools
 import json
 import pytz
-from collections import defaultdict
+from collections import defaultdict, OrderedDict, Callable
 from datetime import date
 
 # Third party libraries
 import pprint
 import flask
 from flask import Response
-from pony.orm.core import QueryResult
+from pony.orm.core import QueryResult, Set
 from werkzeug.exceptions import NotFound
 
 # Local libraries
 from .db_models import db
+
+
 
 # pretty printing: for printing JSON objects legibly
 pp = pprint.PrettyPrinter(indent=4)
@@ -53,9 +55,7 @@ only = {
         'id',
         'name',
     ],
-    'Tag': [
-        'name',
-    ],
+    'Tag':'name'
 }
 
 
@@ -84,16 +84,20 @@ def jsonify_custom(obj):
         return obj.to_dict(only=only['Funder'])
     elif isinstance(obj, db.Event):
         return obj.to_dict(only=only['Event'])
+    elif isinstance(obj, db.Tag):
+        return getattr(obj, only['Tag'])
     elif isinstance(obj, db.Item):
         return obj.to_dict(
             only=only['Item'],
             with_collections=True,
             related_objects=True,
         )
-    elif isinstance(obj, db.Tag):
-        return obj.name
     elif isinstance(obj, date):
         return str(obj)
+    elif type(obj).__name__ == 'TagSet':
+        return "; ".join([d.name for d in obj])
+    else:
+        print(obj)
 
 
 def get_str_from_datetime(dt, t_res, strf_str):
@@ -154,7 +158,6 @@ def passes_filters(instance, filters):
 def format_response(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        # try:
         # Load unformatted data from prior function return statement.
         unformattedData = func(*args, **kwargs)
 
@@ -180,23 +183,69 @@ def format_response(func):
             "data": formattedData, "error": False, "message": "Success"
         }
 
-        # # If there was an error, return it.
-        # except NotFound:
-        #     results = {
-        #         "data": request.path, "error": True, "message": "404 - not found"
-        #     }
-        # except Exception as e:
-        #     print(e)
-        #     results = {
-        #         "data": '',
-        #         "error": True,
-        #         "message": str(e),
-        #     }
-
         # Convert entire response to JSON and return it.
         return json.loads(json.dumps(results, default=jsonify_custom))
-        # return flask.jsonify(results)
 
     # Return the function wrapper (allows a succession of decorator functions to
     # be called)
     return wrapper
+
+def jsonify_response(func):
+    """Decorator to ensure all PonyORM entities in a schema function response
+    are converted to dicts per the rules in `jsonify_custom` above.
+
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # Load unformatted data from prior function return statement.
+        results = func(*args, **kwargs)
+
+        # Convert entire response to JSON and return it.
+        return json.loads(json.dumps(results, default=jsonify_custom))
+
+    # Return the function wrapper (allows a succession of decorator functions to
+    # be called)
+    return wrapper
+
+class DefaultOrderedDict(OrderedDict):
+    # Source: http://stackoverflow.com/a/6190500/562769
+    def __init__(self, default_factory=None, *a, **kw):
+        if (default_factory is not None and
+           not isinstance(default_factory, Callable)):
+            raise TypeError('first argument must be callable')
+        OrderedDict.__init__(self, *a, **kw)
+        self.default_factory = default_factory
+
+    def __getitem__(self, key):
+        try:
+            return OrderedDict.__getitem__(self, key)
+        except KeyError:
+            return self.__missing__(key)
+
+    def __missing__(self, key):
+        if self.default_factory is None:
+            raise KeyError(key)
+        self[key] = value = self.default_factory()
+        return value
+
+    def __reduce__(self):
+        if self.default_factory is None:
+            args = tuple()
+        else:
+            args = self.default_factory,
+        return type(self), args, None, None, self.items()
+
+    def copy(self):
+        return self.__copy__()
+
+    def __copy__(self):
+        return type(self)(self.default_factory, self)
+
+    def __deepcopy__(self, memo):
+        import copy
+        return type(self)(self.default_factory,
+                          copy.deepcopy(self.items()))
+
+    def __repr__(self):
+        return 'OrderedDefaultDict(%s, %s)' % (self.default_factory,
+                                               OrderedDict.__repr__(self))

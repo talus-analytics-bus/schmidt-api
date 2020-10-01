@@ -148,7 +148,7 @@ class SheetSettings():
                     worksheet.write(irow, icol, value, cell_format)
 
                     icol = icol + 1
-            worksheet.set_row(irow, 75)
+            worksheet.set_row(irow, 155)
             irow = irow + 1
             icol = init_icol
 
@@ -187,10 +187,13 @@ class SheetSettings():
                     colname,
                     self.formats.colname(bg_color)
                 )
-                if self.type == 'legend' and colname in ('Policy relaxing or restricting'):
-                    worksheet.set_column(icol, icol, 100)
-                elif colname == 'Country':
-                    worksheet.set_column(icol, icol, 25)
+                if self.type == 'legend' and colname in (
+                        'Sub-organization',
+                        'Authoring organization has governance authority?'
+                    ):
+                    worksheet.set_column(icol, icol, 60)
+                elif colname == 'Description':
+                    worksheet.set_column(icol, icol, 80)
                 else:
                     worksheet.set_column(icol, icol, 50)
 
@@ -280,7 +283,7 @@ class SheetSettings():
         self.write_logo(worksheet,
                         logo_fn,
                         logo_offset,
-                        90)
+                        115)
         self.write_title(worksheet, title)
 
         today = date.today()
