@@ -866,6 +866,7 @@ def assign_field_value_to_export_row(row, d, field):
 
 
 @db_session
+@cached
 @jsonify_response
 def get_export_data(filters: dict = None):
     """Returns items that match the filters for export.
@@ -890,10 +891,11 @@ def get_export_data(filters: dict = None):
     ).order_by(db.Metadata.order)
 
     # get items to be exported
+    ids = [] if 'id' not in filters else filters['id']
     items = select(
         i for i in db.Item
-        if i.id in filters['id']
-    )
+        if i.id in ids or len(ids) == 0
+    ).order_by(raw_sql(f'''i.date DESC NULLS LAST'''))
 
     # get rows
     rows = list()

@@ -280,7 +280,7 @@ class Filter_Counts(Resource):
 
 # XLSX download of items data
 @api.route("/export/excel", methods=["GET"])
-class Export(Resource):
+class ExportExcel(Resource):
     """Return XLSX file of data with specified filters applied."""
     parser = api.parser()
 
@@ -291,9 +291,7 @@ class Export(Resource):
 
         # get ids of items from URL params
         ids = get_int_list(params.getlist('ids'))
-
-        filters = {'id': ids}
-        # filters = request.json.get('filters')
+        filters = {'id': ids} if len(ids) > 0 else dict()
 
         send_file_args = schema.export(
             filters=filters,
