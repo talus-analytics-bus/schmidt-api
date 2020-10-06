@@ -18,14 +18,18 @@ if __name__ == "__main__":
     # update core policy data, if appropriate
     client = plugin.load_client(airtable_key)
 
-    # load and process metadata from data dictionary(ies)
+    # update various entity instances
     client.update_metadata(db)
     client.update_items(db)
     client.update_funders(db)
     client.update_authors(db)
     client.update_events(db)
     client.update_files(db, scrape_text=True)
+
+    # collate search text for each item from other metadata
     client.update_item_search_text(db)
+
+    # remove tags that are unused
     client.clean_tags(db)
 
     # exit
