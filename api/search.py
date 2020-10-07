@@ -118,6 +118,7 @@ def get_matching_instances(
                         d['snippets'] = snippets
                     all_matches.append(d)
                 matching_instances[class_name] = all_matches
+                matching_instances[class_name].sort(key=lambda x: x[field])
         else:
             # search through all used values for matches, then return
             all_vals = select(i.key_topics.name for i in items)[:][:]
@@ -156,4 +157,5 @@ def get_matching_instances(
                         d['snippets'] = snippets
                     all_matches.append(d)
                 matching_instances[class_name] = all_matches
+                matching_instances[class_name].sort(key=lambda x: x[field])
     return matching_instances
