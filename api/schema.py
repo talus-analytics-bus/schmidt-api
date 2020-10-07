@@ -121,10 +121,10 @@ def get_item(
             all_related = select(
                 (
                     i,
-                    (
-                        author in item.authors
-                        and author in i.authors
-                    ),
+                    # (
+                    #     author in item.authors
+                    #     and author in i.authors
+                    # ),
                     (
                         tag in item.key_topics
                         and tag in i.key_topics
@@ -132,12 +132,14 @@ def get_item(
                     i in item.items
                 )
                 for i in db.Item
-                for author in db.Author
+                # for author in db.Author
                 for tag in db.Tag
-                if ((
-                    author in item.authors
-                    and author in i.authors
-                ) or (
+                if (
+                #     (
+                #     author in item.authors
+                #     and author in i.authors
+                # ) or
+                    (
                     tag in item.key_topics
                     and tag in i.key_topics
                 ) or (
@@ -145,7 +147,7 @@ def get_item(
                 ))
                 and i != item
             )
-            related = all_related.order_by(lambda a, b, c, d: desc(d)).page(page, pagesize=pagesize)
+            related = all_related.order_by(lambda a, b, c: desc(c)).page(page, pagesize=pagesize)
             total = count(all_related)
 
         # return all data
@@ -163,12 +165,12 @@ def get_item(
                     related_objects=True,
                 )
                 why = list()
-                if d[3]:
+                if d[2]:
                     why.append('directly related')
-                if not d[3]:
+                if not d[2]:
+                    # if d[1]:
+                    #     why.append('also by this authoring org.')
                     if d[1]:
-                        why.append('also by this authoring org.')
-                    if d[2]:
                         why.append('similar topic')
                 datum['why'] = why
                 related_dicts.append(datum)
