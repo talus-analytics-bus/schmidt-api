@@ -46,6 +46,27 @@ def cached(func):
     return wrapper
 
 @db_session
+def cached_items(func):
+    """ Caching for PonyORM item instances """
+    cache = {}
+
+    @functools.wraps(func)
+    def wrapper(*func_args, **kwargs):
+
+        key = str(kwargs)
+        if key in cache:
+
+            # get items by id
+            items = cache[key]
+            return items
+
+        results = func(*func_args, **kwargs)
+        cache[key] = results
+        return results
+
+    return wrapper
+
+@db_session
 def get_items(
     page,
     pagesize,
@@ -265,39 +286,14 @@ def get_search(
         Description of returned object.
 
     """
-
-    # get all items
-    all_items = select(
-        i for i in db.Item
-    )
-
-    # filter items
-    filtered_items = apply_filters_to_items(
-        all_items,
-        filters,
-        search_text
-    )
-
-    # if search text not null and not preview: get matching instances by class
-    other_instances = get_matching_instances(
-        filtered_items,
-        search_text,
-        explain_results  # TODO dynamically
-    ) if preview else []
-
-    # # apply search text to items, if any
-    # searched_items = apply_search_to_items(
-    #     filtered_items, search_text, explain_results, preview
-    # )
-
-    # get filter value counts for current set
-    filter_counts = get_metadata_value_counts(items=filtered_items)
-    # filter_counts = get_metadata_value_counts(items=searched_items)
-
-    # order items
-    ordered_items = apply_ordering_to_items(
-        filtered_items, order_by, is_desc, search_text
-        # searched_items, order_by, is_desc, search_text
+    # get ordered items, from cache if available
+    [ordered_items, filter_counts] = get_ordered_items_and_filter_counts(
+        filters=filters,
+        search_text=search_text,
+        order_by=order_by,
+        is_desc=is_desc,
+        preview=preview,
+        explain_results=explain_results,
     )
 
     # paginate items
@@ -430,7 +426,7 @@ def get_search(
 
     return data
 
-
+@db_session
 def apply_filters_to_items(
     items,
     filters: dict = {},
@@ -467,6 +463,13 @@ def apply_filters_to_items(
                 for j_topic in i_filtered.key_topics
                 if j_topic.name in allowed_values
                 and j_topic.field == field
+            ).prefetch(
+                db.Item.key_topics,
+                db.Item.funders,
+                db.Item.authors,
+                db.Item.tags,
+                db.Item.files,
+                db.Item.events
             )
 
         # filter items by linked attributes
@@ -481,6 +484,13 @@ def apply_filters_to_items(
                     for i_linked_author in items
                     for j_linked_author in i_linked_author.authors
                     if str(j_linked_author.id) in allowed_values
+                ).prefetch(
+                    db.Item.key_topics,
+                    db.Item.funders,
+                    db.Item.authors,
+                    db.Item.tags,
+                    db.Item.files,
+                    db.Item.events
                 )
             elif entity_name == 'author' and linked_field == 'type_of_authoring_organization':
                 items = select(
@@ -488,6 +498,13 @@ def apply_filters_to_items(
                     for i_linked_author_type in items
                     for j_linked_author_type in i_linked_author_type.authors
                     if str(j_linked_author_type.type_of_authoring_organization) in allowed_values
+                ).prefetch(
+                    db.Item.key_topics,
+                    db.Item.funders,
+                    db.Item.authors,
+                    db.Item.tags,
+                    db.Item.files,
+                    db.Item.events
                 )
             elif entity_name == 'funder' and linked_field == 'name':
                 items = select(
@@ -495,6 +512,13 @@ def apply_filters_to_items(
                     for i_linked_funder in items
                     for j_linked_funder in i_linked_funder.funders
                     if str(j_linked_funder.name) in allowed_values
+                ).prefetch(
+                    db.Item.key_topics,
+                    db.Item.funders,
+                    db.Item.authors,
+                    db.Item.tags,
+                    db.Item.files,
+                    db.Item.events
                 )
             else:
                 items = select(
@@ -502,6 +526,13 @@ def apply_filters_to_items(
                     for i_linked in items
                     for j_linked in getattr(i_linked, entity_name + 's')
                     if str(getattr(j_linked, linked_field)) in allowed_values
+                ).prefetch(
+                    db.Item.key_topics,
+                    db.Item.funders,
+                    db.Item.authors,
+                    db.Item.tags,
+                    db.Item.files,
+                    db.Item.events
                 )
         # special: years
         elif field == 'years':
@@ -510,6 +541,13 @@ def apply_filters_to_items(
                     i_years
                     for i_years in items
                     if str(i_years.date.year) in allowed_values
+                ).prefetch(
+                    db.Item.key_topics,
+                    db.Item.funders,
+                    db.Item.authors,
+                    db.Item.tags,
+                    db.Item.files,
+                    db.Item.events
                 )
             else:
                 range = allowed_values[0].split('_')[1:3]
@@ -520,12 +558,26 @@ def apply_filters_to_items(
                     for i_range in items
                     if i_range.date.year >= start
                     and i_range.date.year <= end
+                ).prefetch(
+                    db.Item.key_topics,
+                    db.Item.funders,
+                    db.Item.authors,
+                    db.Item.tags,
+                    db.Item.files,
+                    db.Item.events
                 )
         else:
             items = select(
                 i_standard
                 for i_standard in items
                 if getattr(i_standard, field) in allowed_values
+            ).prefetch(
+                db.Item.key_topics,
+                db.Item.funders,
+                db.Item.authors,
+                db.Item.tags,
+                db.Item.files,
+                db.Item.events
             )
 
     # apply search text
@@ -535,6 +587,13 @@ def apply_filters_to_items(
             for i in items
             if search_text.lower() in i.search_text
             # if search_text.lower() in i.search_text.lower()
+        ).prefetch(
+            db.Item.key_topics,
+            db.Item.funders,
+            db.Item.authors,
+            db.Item.tags,
+            db.Item.files,
+            db.Item.events
         )
 
     return items
@@ -576,7 +635,6 @@ def apply_search_to_items(
         )
 
     return search_items
-
 
 def apply_ordering_to_items(
     items,
@@ -633,7 +691,7 @@ def apply_ordering_to_items(
             items = items.order_by(raw_sql(f'''i.title {desc_text} NULLS LAST'''))
     return items
 
-
+@db_session
 def get_matching_instances(
     items,
     search_text: str = None,
@@ -938,3 +996,54 @@ def get_export_legend_data():
             field.possible_values
 
     return [def_row, val_row]
+
+@db_session
+@cached_items
+def get_ordered_items_and_filter_counts(
+    filters: dict = {},
+    search_text: str = None,
+    order_by: str = 'date',
+    is_desc: bool = True,
+    preview: bool = False,
+    explain_results: bool = True,
+):
+    # get all items
+    all_items = get_all_items()
+
+    # filter items
+    filtered_items = apply_filters_to_items(
+        all_items,
+        filters,
+        search_text
+    )
+
+    # if search text not null and not preview: get matching instances by class
+    other_instances = get_matching_instances(
+        filtered_items,
+        search_text,
+        explain_results  # TODO dynamically
+    ) if preview else []
+
+    # get filter value counts for current set
+    filter_counts = get_metadata_value_counts(items=filtered_items)
+
+    # order items
+    return [
+        apply_ordering_to_items(
+            filtered_items, order_by, is_desc, search_text
+        )[:][:],
+        filter_counts
+    ]
+
+@cached_items
+def get_all_items():
+    return select(
+        i for i in db.Item
+    ).prefetch(
+        db.Item.key_topics,
+        db.Item.funders,
+        db.Item.authors,
+        db.Item.tags,
+        db.Item.files,
+        db.Item.events
+    )
