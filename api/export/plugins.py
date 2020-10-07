@@ -65,12 +65,15 @@ class SchmidtExportPlugin(ExcelExport):
         # export whichever is defined in `class_name`
         export_policies_and_plans = class_name == 'all'
 
+        # Bookmarks or all data?
+        bookmarks = 'id' in filters and len(filters['id']) > 0
+
         self.sheet_settings = []
         tabs = (
             {
                 's': 'Item',
-                'p': 'Bookmarked items',
-                'intro_text': 'The table below lists metadata for bookmarked items from the Health Security Net\'s Global Health Security Library.',
+                'p': 'Bookmarked items' if bookmarks else 'All items in library',
+                'intro_text': f'''The table below lists metadata for {'bookmarked ' if bookmarks else ''}items from the Health Security Net\'s Global Health Security Library.''',
                 'data': self.default_data_getter,
                 'legend': self.default_data_getter_legend
             },
