@@ -287,14 +287,15 @@ def get_search(
 
     """
     # get ordered items, from cache if available
-    [ordered_items, filter_counts] = get_ordered_items_and_filter_counts(
-        filters=filters,
-        search_text=search_text,
-        order_by=order_by,
-        is_desc=is_desc,
-        preview=preview,
-        explain_results=explain_results,
-    )
+    [ordered_items, filter_counts, other_instances] = \
+        get_ordered_items_and_filter_counts(
+            filters=filters,
+            search_text=search_text,
+            order_by=order_by,
+            is_desc=is_desc,
+            preview=preview,
+            explain_results=explain_results,
+        )
 
     # paginate items
     start = 1 + pagesize * (page - 1) - 1
@@ -1032,7 +1033,8 @@ def get_ordered_items_and_filter_counts(
         apply_ordering_to_items(
             filtered_items, order_by, is_desc, search_text
         )[:][:],
-        filter_counts
+        filter_counts,
+        other_instances
     ]
 
 @cached_items
