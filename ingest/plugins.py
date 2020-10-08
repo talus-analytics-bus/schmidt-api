@@ -144,7 +144,7 @@ class SchmidtPlugin(IngestPlugin):
         return self
 
     @db_session
-    def update_items(self, db):
+    def update_items(self, db, delete_old=False):
         """Get Items instance data from Airtable, parse into database records,
         and write to database.
 
@@ -179,6 +179,10 @@ class SchmidtPlugin(IngestPlugin):
 
         # store link items
         linked_items_by_id = defaultdict(set)
+
+        # store upserted items, and delete any in the db that aren't on the
+        # list when ingest is complete
+        all_upserted = set()
 
         # parse items into instances to write to database
         item_dicts = self.item.to_dict(orient="records")
@@ -233,6 +237,9 @@ class SchmidtPlugin(IngestPlugin):
                 set=upsert_set,
             )
 
+            # add upserted item to master set
+            all_upserted.add(upserted)
+
             # assign all tag field keys here from upsert_set
             for field in upsert_tag:
                 upsert_tag_field_vals = upsert_tag[field] if \
@@ -257,7 +264,10 @@ class SchmidtPlugin(IngestPlugin):
                 a.items.add(b)
             commit()
 
-
+        # Delete old items from the db
+        to_delete = select(i for i in db.Item if i not in all_upserted)
+        to_delete.delete()
+        commit()
 
         print('Items updated.')
         return self

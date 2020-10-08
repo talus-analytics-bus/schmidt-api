@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     # update various entity instances
     client.update_metadata(db)
-    client.update_items(db)
+    client.update_items(db, delete_old=True)
     client.update_funders(db)
     client.update_authors(db)
     client.update_events(db)
