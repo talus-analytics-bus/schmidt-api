@@ -25,7 +25,7 @@ class Item(db.Entity):
     link = Optional(str)
     internal_research_note = Optional(str)
     ra_coder_initials = Optional(str)
-    final_review = Required(bool, default=False)
+    final_review = Optional(bool, default=False)
     search_text = Optional(str)
     authoring_organization_has_governance_authority = Optional(bool, nullable=True)
     source_id = Optional(str)
