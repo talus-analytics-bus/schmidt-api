@@ -470,7 +470,8 @@ def apply_filters_to_items(
                 db.Item.authors,
                 db.Item.tags,
                 db.Item.files,
-                db.Item.events
+                db.Item.events,
+                db.Item.items
             )
 
         # filter items by linked attributes
@@ -491,7 +492,8 @@ def apply_filters_to_items(
                     db.Item.authors,
                     db.Item.tags,
                     db.Item.files,
-                    db.Item.events
+                    db.Item.events,
+                    db.Item.items
                 )
             elif entity_name == 'author' and linked_field == 'type_of_authoring_organization':
                 items = select(
@@ -505,7 +507,8 @@ def apply_filters_to_items(
                     db.Item.authors,
                     db.Item.tags,
                     db.Item.files,
-                    db.Item.events
+                    db.Item.events,
+                    db.Item.items
                 )
             elif entity_name == 'funder' and linked_field == 'name':
                 items = select(
@@ -519,7 +522,8 @@ def apply_filters_to_items(
                     db.Item.authors,
                     db.Item.tags,
                     db.Item.files,
-                    db.Item.events
+                    db.Item.events,
+                    db.Item.items
                 )
             else:
                 items = select(
@@ -533,7 +537,8 @@ def apply_filters_to_items(
                     db.Item.authors,
                     db.Item.tags,
                     db.Item.files,
-                    db.Item.events
+                    db.Item.events,
+                    db.Item.items
                 )
         # special: years
         elif field == 'years':
@@ -548,7 +553,8 @@ def apply_filters_to_items(
                     db.Item.authors,
                     db.Item.tags,
                     db.Item.files,
-                    db.Item.events
+                    db.Item.events,
+                    db.Item.items
                 )
             else:
                 range = allowed_values[0].split('_')[1:3]
@@ -565,7 +571,8 @@ def apply_filters_to_items(
                     db.Item.authors,
                     db.Item.tags,
                     db.Item.files,
-                    db.Item.events
+                    db.Item.events,
+                    db.Item.items
                 )
         else:
             items = select(
@@ -578,7 +585,8 @@ def apply_filters_to_items(
                 db.Item.authors,
                 db.Item.tags,
                 db.Item.files,
-                db.Item.events
+                db.Item.events,
+                db.Item.items
             )
 
     # apply search text
@@ -594,48 +602,12 @@ def apply_filters_to_items(
             db.Item.authors,
             db.Item.tags,
             db.Item.files,
-            db.Item.events
+            db.Item.events,
+            db.Item.items
         )
 
     return items
 
-
-def apply_search_to_items(
-    search_items,
-    search_text: str = None,
-    explain_results: bool = False,
-    preview: bool = True
-):
-    """Given a search string, applies exact-insensitive search to item
-    metadata to find matches.
-
-    TODO other search approaches like fuzzy
-
-    Parameters
-    ----------
-    items : type
-        Description of parameter `items`.
-    search_text : str
-        Description of parameter `search_text`.
-
-    Returns
-    -------
-    type
-        Description of returned object.
-
-    """
-
-    # apply search text
-    if search_text is not None and search_text != '':
-        cur_search_text = search_text.lower()
-        search_items = select(
-            search_item
-            for search_item in search_items
-            if cur_search_text in search_item.search_text
-            # if cur_search_text in search_item.search_text.lower()
-        )
-
-    return search_items
 
 def apply_ordering_to_items(
     items,
@@ -1047,5 +1019,6 @@ def get_all_items():
         db.Item.authors,
         db.Item.tags,
         db.Item.files,
-        db.Item.events
+        db.Item.events,
+        db.Item.items
     )
