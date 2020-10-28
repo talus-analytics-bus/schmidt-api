@@ -386,12 +386,10 @@ def get_search(
                 snippets['tags'] = 'Search tags contain text match'
 
             # pdf?
-            for file in d.files:
-                if file.scraped_text is not None and \
-                        cur_search_text in file.scraped_text:
-                    at_least_one = True
-                    snippets['files'] = 'PDF file contains text match'
-                break
+            if d.file_search_text is not None and \
+                    cur_search_text in d.file_search_text:
+                at_least_one = True
+                snippets['files'] = 'PDF file contains text match'
 
             # append results
             data_snippets.append(

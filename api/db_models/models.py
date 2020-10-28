@@ -27,6 +27,7 @@ class Item(db.Entity):
     ra_coder_initials = Optional(str)
     final_review = Optional(bool, default=False)
     search_text = Optional(str)
+    file_search_text = Optional(str)
     authoring_organization_has_governance_authority = Optional(bool, nullable=True)
     source_id = Optional(str)
     tags = Set('Tag')

@@ -310,6 +310,7 @@ class SchmidtPlugin(IngestPlugin):
         # add plain fields on the Item entity, like name and desc
         for i in all_items:
             search_text = ''
+            file_search_text = ''
             for field in fields_str:
                 search_text += getattr(i, field) + ' '
             for field in fields_tag:
@@ -332,11 +333,13 @@ class SchmidtPlugin(IngestPlugin):
                 str_to_concat = " - ".join(linked_values) + ' '
                 if linked_field == 'scraped_text':
                     str_to_concat = str_to_concat[0:100000]
+                    file_search_text += str_to_concat
 
                 search_text += str_to_concat
 
             # update search text
             i.search_text = search_text.lower()
+            i.file_search_text = file_search_text.lower()
             commit()
         print('Complete.')
 
