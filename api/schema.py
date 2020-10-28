@@ -297,14 +297,23 @@ def get_search(
             explain_results=explain_results,
         )
 
+
     # paginate items
-    start = 1 + pagesize * (page - 1) - 1
-    end = pagesize * (page)
-    items = ordered_items[start:end]
+    # apply most efficient pagination method based on `items` type
+    total = None
+    if type(ordered_items) == list:
+        start = 1 + pagesize * (page - 1) - 1
+        end = pagesize * (page)
+        total = len(ordered_items)
+        items = ordered_items[start:end]
+    else:
+        total = ordered_items.count()
+        items = ordered_items.page(page, pagesize=pagesize)
 
     # if applicable, get explanation for search results (snippets)
     data_snippets = list()
-    if not preview and explain_results and search_text is not None and search_text != '':
+    if not preview and explain_results and search_text is not None \
+            and search_text != '':
         search_items_with_snippets = list()
         cur_search_text = search_text.lower() if search_text is not None \
             else ''
@@ -392,21 +401,17 @@ def get_search(
     # if preview: return counts of items and matching instances
     data = None
     if preview:
-        n_items = len(ordered_items)
-        # n_items = count(ordered_items)
+
         data = {
-            'n_items': n_items,
+            'n_items': total,
             'other_instances': other_instances,
             'search_text': search_text
         }
     else:
         # otherwise: return paginated items and details
-        total = len(ordered_items)
-        # total = count(ordered_items)
         num_pages = math.ceil(total / pagesize)
         item_dicts = [
             d.to_dict(
-                # only=only,
                 exclude=['search_text'],
                 with_collections=True,
                 related_objects=True,
@@ -634,6 +639,7 @@ def apply_ordering_to_items(
     by_relevance = order_by == 'relevance'
     item_ids_by_relevance = list()
     if by_relevance and search_text is not None and search_text != '':
+
         cur_search_text = search_text.lower()
         for d in items:
             relevance = None
@@ -662,6 +668,7 @@ def apply_ordering_to_items(
             items = items.order_by(raw_sql(f'''i.date {desc_text} NULLS LAST'''))
         elif order_by == 'title':
             items = items.order_by(raw_sql(f'''i.title {desc_text} NULLS LAST'''))
+
     return items
 
 @db_session
@@ -1000,14 +1007,21 @@ def get_ordered_items_and_filter_counts(
     # get filter value counts for current set
     filter_counts = get_metadata_value_counts(items=filtered_items)
 
-    # order items
-    return [
-        apply_ordering_to_items(
-            filtered_items, order_by, is_desc, search_text
-        )[:][:],
+    # get ordered items
+    ordered_items_q = apply_ordering_to_items(
+        filtered_items, order_by, is_desc, search_text
+    )
+    ordered_items = ordered_items_q
+
+    # get results
+    results = [
+        ordered_items,
         filter_counts,
         other_instances
     ]
+
+    # order items
+    return results
 
 @cached_items
 def get_all_items():
