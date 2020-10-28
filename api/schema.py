@@ -596,11 +596,11 @@ def apply_filters_to_items(
 
     # apply search text
     if search_text is not None and search_text != '':
+        max_chars = 1000
         items = select(
             i
             for i in items
-            if search_text.lower() in i.search_text
-            # if search_text.lower() in i.search_text.lower()
+            if search_text.lower() in i.search_text[0:max_chars]
         ).prefetch(
             db.Item.key_topics,
             db.Item.funders,
