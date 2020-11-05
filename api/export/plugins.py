@@ -65,15 +65,52 @@ class SchmidtExportPlugin(ExcelExport):
         # export whichever is defined in `class_name`
         export_policies_and_plans = class_name == 'all'
 
-        # Bookmarks or all data?
-        bookmarks = 'id' in filters and len(filters['id']) > 0
+        # Bookmarks or filtered data or all data?
+        def get_export_type(filters):
+            if 'id' in filters:
+                return 'bookmarks'
+            elif len(filters.keys()) > 0:
+                return 'selected'
+            else:
+                return 'all'
+
+        def get_data_sheet_title(export_type):
+            if export_type == 'bookmarks':
+                return 'Bookmarked items'
+            elif export_type == 'selected':
+                only_one_filter = len(filters.keys()) == 1
+                suffix = ''
+                if only_one_filter:
+                    for key in filters:
+                        only_one_value = len(filters[key]) == 1
+                        if only_one_value:
+                            # if range of dates, format them
+                            value = filters[key][0]
+                            if 'range' in value:
+                                value_list = value.split('_')
+                                start = value_list[1]
+                                end = value_list[2]
+                                if end == 'null':
+                                    value = f'''{value_list[1]} to present'''
+                                elif start == 'null':
+                                    value = f'''Through {value_list[2]}'''
+                                else:
+                                    value = f'''{value_list[1]} to {value_list[2]}'''
+                            suffix = ': ' + value
+                return 'Selected items' + suffix
+            else:
+                return 'All items in library'
+        pp.pprint('filters')
+        pp.pprint(filters)
+        export_type = get_export_type(filters)
+        data_sheet_title = get_data_sheet_title(export_type)
 
         self.sheet_settings = []
         tabs = (
             {
                 's': 'Item',
-                'p': 'Bookmarked items' if bookmarks else 'All items in library',
-                'intro_text': f'''The table below lists metadata for {'bookmarked ' if bookmarks else ''}items from the Health Security Net\'s Global Health Security Library.''',
+                'p': data_sheet_title,
+                'intro_text': f'''The table below lists metadata for {export_type} items from the Health Security Net\'s Global Health Security Library.''',
                 'data': self.default_data_getter,
                 'legend': self.default_data_getter_legend
             },
@@ -131,7 +168,18 @@ class SchmidtExportPlugin(ExcelExport):
 
         """
         for settings in self.sheet_settings:
-            worksheet = workbook.add_worksheet(settings.name)
+            # Truncate name if too many characters
+            def truncate_name(name):
+                max_tab_name_len = 31
+                if len(name) > (max_tab_name_len - 2):
+                    if ':' in name:
+                        name = name.split(':')[0]
+                    else:
+                        name = name[0:max_tab_name_len]
+                name = name.replace(':', ' - ')
+                return name
+            tab_name = truncate_name(settings.name)
+            worksheet = workbook.add_worksheet(tab_name)
 
             # hide gridlines
             worksheet.hide_gridlines(2)

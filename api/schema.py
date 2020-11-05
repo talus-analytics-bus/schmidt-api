@@ -932,14 +932,18 @@ def get_export_data(filters: dict = None):
     ids = [] if 'id' not in filters else filters['id']
     items = select(
         i for i in db.Item
-        if i.id in ids or len(ids) == 0
     ).order_by(raw_sql(f'''i.date DESC NULLS LAST'''))
+    filtered_items = apply_filters_to_items(items, filters)
+    # items = select(
+    #     i for i in db.Item
+    #     if i.id in ids or len(ids) == 0
+    # ).order_by(raw_sql(f'''i.date DESC NULLS LAST'''))
 
     # get rows
     rows = list()
 
     # format data for export
-    for d in items:
+    for d in filtered_items:
         row = DefaultOrderedDict(DefaultOrderedDict)
         for field in export_fields:
             assign_field_value_to_export_row(row, d, field)

@@ -280,18 +280,46 @@ class Filter_Counts(Resource):
 
 # XLSX download of items data
 @api.route("/export/excel", methods=["GET"])
-class ExportExcel(Resource):
+@api.route("/get/export/excel", methods=["GET"])
+class ExportExcelGet(Resource):
     """Return XLSX file of data with specified filters applied."""
     parser = api.parser()
 
     @api.doc(parser=parser)
     @db_session
     def get(self):
+
         params = request.args
 
-        # get ids of items from URL params
+        # get ids of items from URL params, if they exist
         ids = get_int_list(params.getlist('ids'))
         filters = {'id': ids} if len(ids) > 0 else dict()
+
+        send_file_args = schema.export(
+            filters=filters,
+        )
+        return send_file(
+            send_file_args['content'],
+            attachment_filename=send_file_args['attachment_filename'],
+            as_attachment=True
+        )
+
+# XLSX download of items data
+@api.route("/post/export/excel", methods=["POST"])
+class ExportExcelPost(Resource):
+    """Return XLSX file of data with specified filters applied."""
+    parser = api.parser()
+
+    @api.doc(parser=parser)
+    @db_session
+    def post(self):
+        """Get exported XLS with items matching body `filters`.
+
+        """
+
+        # get request body containing filters
+        body = request.get_json()
+        filters = body['filters'] if 'filters' in body else {}
 
         send_file_args = schema.export(
             filters=filters,
