@@ -67,6 +67,18 @@ class SchmidtExportPlugin(ExcelExport):
 
         # Bookmarks or filtered data or all data?
         def get_export_type(filters):
+            """Get one-word description of the type of export, inferred from
+            the filters provided.
+
+            Parameters
+            ----------
+            filters : dict
+
+            Returns
+            -------
+            str
+
+            """
             if 'id' in filters:
                 return 'bookmarks'
             elif len(filters.keys()) > 0:
@@ -74,34 +86,105 @@ class SchmidtExportPlugin(ExcelExport):
             else:
                 return 'all'
 
+        def get_filter_prefix(key):
+            """If funder or author filter applied, add prefix to sheet title
+            saying which it was to reduce ambiguity.
+
+            Parameters
+            ----------
+            key : str
+                Name of filter field
+
+            Returns
+            -------
+            str
+
+            """
+            if key == 'funder.name':
+                return 'Funded by '
+            elif key.startswith('author.'):
+                return 'Published by '
+            else:
+                return ''
+
+        def get_final_value(key, value_tmp):
+            """Returns `value_tmp` unless it represents a unique ID of an
+            author, in which case the author's name is returned instead.
+
+            Parameters
+            ----------
+            key : str
+                Name of filter
+            value_tmp : any
+
+            Returns
+            -------
+            any
+
+            """
+            if key == 'author.id':
+                return db.Author[value_tmp].authoring_organization
+            else:
+                return value_tmp
+
         def get_data_sheet_title(export_type):
+            """Given the export type determined above returns the title of the
+            sheet that should be used.
+
+            Parameters
+            ----------
+            export_type : str
+
+            Returns
+            -------
+            str
+
+            """
             if export_type == 'bookmarks':
                 return 'Bookmarked items'
+
+            # if selected items, show as descriptive a title as possible
+            # without exceeding a reasonable number of characters
             elif export_type == 'selected':
                 only_one_filter = len(filters.keys()) == 1
                 suffix = ''
                 if only_one_filter:
                     for key in filters:
+
+                        # only describe what filter was applied if just one
+                        # filter was applied, otherwise too many words
                         only_one_value = len(filters[key]) == 1
                         if only_one_value:
+
                             # if range of dates, format them
-                            value = filters[key][0]
+                            value = get_final_value(key, filters[key][0])
+
+                            # format date ranges in plain English
                             if 'range' in value:
                                 value_list = value.split('_')
                                 start = value_list[1]
                                 end = value_list[2]
                                 if end == 'null':
-                                    value = f'''{value_list[1]} to present'''
+                                    value = f'''Year {value_list[1]} to present'''
                                 elif start == 'null':
-                                    value = f'''Through {value_list[2]}'''
+                                    value = f'''Through year {value_list[2]}'''
                                 else:
-                                    value = f'''{value_list[1]} to {value_list[2]}'''
+                                    value = f'''Years {value_list[1]} to {value_list[2]}'''
+                            elif key == 'years':
+                                value = f'''Year {value}'''
+
+                            # get prefix with filter description (if avail.)
+                            prefix = get_filter_prefix(key)
+                            value = prefix + value
+
+                            # add suffix explaining what filter was applied,
+                            # if any shown
                             suffix = ': ' + value
+                            
                 return 'Selected items' + suffix
             else:
                 return 'All items in library'
-        pp.pprint('filters')
-        pp.pprint(filters)
+
         export_type = get_export_type(filters)
         data_sheet_title = get_data_sheet_title(export_type)
 
