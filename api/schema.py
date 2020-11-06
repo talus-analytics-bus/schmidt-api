@@ -135,75 +135,85 @@ def get_item(
         items = [item]
 
         # if include related, get those too
+        # include all directly related items and, if that is fewer than 10,
+        # as many items with a related topic as required to reach 10 total
         all_related = []
         related = []
         total = None
+        related_by_topic = None
+        related_directly = None
         if include_related:
-            all_related = select(
-                (
-                    i,
-                    # (
-                    #     author in item.authors
-                    #     and author in i.authors
-                    # ),
-                    (
-                        tag in item.key_topics
-                        and tag in i.key_topics
-                    ),
-                    i in item.items
-                )
+
+            # get all items directly related
+            related_directly = select(
+                i
                 for i in db.Item
-                # for author in db.Author
                 for tag in db.Tag
-                if (
-                #     (
-                #     author in item.authors
-                #     and author in i.authors
-                # ) or
-                    (
-                    tag in item.key_topics
-                    and tag in i.key_topics
-                ) or (
-                    i in item.items
-                ))
+                if i in item.items
                 and i != item
             )
-            related = all_related.order_by(lambda a, b, c: desc(c)).page(page, pagesize=pagesize)
-            total = count(all_related)
+
+            # up to 10 items related by topic
+            max_related_to_select = 0 if related_directly.count() >= 10 \
+                else 10 - related_directly.count()
+            related_by_topic = select(
+                i
+                for i in db.Item
+                for tag in db.Tag
+                if tag in item.key_topics
+                and tag in i.key_topics
+                and i != item
+                and i not in related_directly
+            ).limit(max_related_to_select)
+
+            # concatenate and sort directly related items to appear first
+            all_related = select(
+                i
+                for i in db.Item
+                if i in related_directly
+                or i in related_by_topic
+            ).order_by(lambda x: x not in item.items)
+
+            # get grand total
+            total = len(all_related)
+
+            # get current page
+            related = all_related.page(page, pagesize=pagesize)
 
         # return all data
         related_dicts = []
         already_added = set()
+
+        # process each item, adding the reason why it is related
         for d in related:
-            if d[0].id in already_added:
+            if d.id in already_added:
                 continue
             else:
-                already_added.add(d[0].id)
-                datum = d[0].to_dict(
-                    # only=only,
+                why = list()
+                if d in item.items:
+                    why.append('directly related')
+                if not d in item.items:
+                    why.append('similar topic')
+
+                already_added.add(d.id)
+                datum = d.to_dict(
                     exclude=['search_text'],
                     with_collections=True,
                     related_objects=True,
                 )
-                why = list()
-                if d[2]:
-                    why.append('directly related')
-                if not d[2]:
-                    # if d[1]:
-                    #     why.append('also by this authoring org.')
-                    if d[1]:
-                        why.append('similar topic')
                 datum['why'] = why
                 related_dicts.append(datum)
 
+        # create response dict
         res = {
             'data': item.to_dict(
-                # only=only,
                 exclude=['search_text'],
                 with_collections=True,
                 related_objects=True,
             ),
         }
+
+        # add pagination data to response, if relevant
         if include_related:
             res['num_pages'] = math.ceil(total / pagesize)
             res['page'] = page
