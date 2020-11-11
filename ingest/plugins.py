@@ -100,7 +100,7 @@ class SchmidtPlugin(IngestPlugin):
         """
         # load data dictionaries from Airtable and store following the
         # pattern `self.dd_[entity_name]`
-        print('• Updating metadata...')
+        print('Updating metadata...')
         self.dd_item = self.client \
             .worksheet(name='Field definitions') \
             .as_dataframe()
@@ -518,13 +518,13 @@ class SchmidtPlugin(IngestPlugin):
 
         # for each item
         for d in self.item.to_dict(orient='records'):
-            event_defined = d['Event linkage'] != ''
+            event_defined = d['Event category'] != ''
             item = db.Item[int(d['ID (automatically assigned)'])]
             item_defined = item is not None
             if not event_defined or not item_defined:
                 continue
             else:
-                event_list = d['Event linkage']
+                event_list = d['Event category']
                 if not iterable(event_list):
                     event_list = list(set([event_list]))
                 all_upserted = list()
