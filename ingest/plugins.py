@@ -130,14 +130,17 @@ class SchmidtPlugin(IngestPlugin):
                 'notes': '',  # NOT IMPLEMENTED,
             }
 
+            # define "get" field values for datum
+            upsert_get = {
+                'field': d['Database field name'],
+                'entity_name': d['Entity name'],
+                'linked_entity_name': d['Database entity'],
+            }
+
             # write instances to database
             action, upserted = upsert(
                 cls=db.Metadata,
-                get={
-                    'field': d['Database field name'],
-                    'entity_name': d['Entity name'],
-                    'linked_entity_name': d['Database entity'],
-                },
+                get=upsert_get,
                 set=upsert_set
             )
         print('Metadata updated.')
@@ -168,13 +171,21 @@ class SchmidtPlugin(IngestPlugin):
         tag_fields = ('key_topics', 'tags')
 
         # list tags that are linked entities to be tagged after the fact
-        linked_fields = ('funders')
+        linked_fields = ('funders',)
+
+        # list tags that are for internal use only and should be skipped
+        internal_fields = (
+            'assigned_to_for_final_review',
+            'assigned_to_initials',
+            'reviewer_initials',
+        )
 
         # get database fields for items to write
         field_data = select(
             i for i in db.Metadata
             if i.entity_name == 'Item'
             and i.field not in linked_fields
+            and i.field not in internal_fields
         )
 
         # store link items
@@ -424,11 +435,6 @@ class SchmidtPlugin(IngestPlugin):
 
         print('Funders updated.')
         return self
-
-
-
-
-
 
         # # throw error if items data not loaded
         # if not hasattr(self, 'item'):
@@ -731,7 +737,8 @@ class SchmidtPlugin(IngestPlugin):
                                                 page_scraped_text = curpage.extract_text()
                                                 if page_scraped_text is not None:
                                                     scraped_text += page_scraped_text
-                                            upsert_set['scraped_text'] = scraped_text.replace('\x00','')
+                                            upsert_set['scraped_text'] = scraped_text.replace(
+                                                '\x00', '')
                                         except Exception as e:
                                             print(
                                                 'File does not appear to be PDF, skipping scraping: ' + file['filename'])
