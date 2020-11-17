@@ -198,6 +198,7 @@ class SchmidtPlugin(IngestPlugin):
         # parse items into instances to write to database
         item_dicts = self.item.to_dict(orient="records")
         for d in self.item.to_dict(orient="records"):
+
             if d['Linked Record ID'] != '':
                 for source_id in d['Linked Record ID']:
                     linked_items_by_id[
@@ -251,6 +252,14 @@ class SchmidtPlugin(IngestPlugin):
             # add upserted item to master set
             all_upserted.add(upserted)
 
+            # clear tags
+            upserted.tags = list()
+            upserted.key_topics = list()
+
+            # clear authors
+            upserted.authors = list()
+            commit()
+
             # assign all tag field keys here from upsert_set
             for field in upsert_tag:
                 upsert_tag_field_vals = upsert_tag[field] if \
@@ -299,7 +308,7 @@ class SchmidtPlugin(IngestPlugin):
             Description of returned object.
 
         """
-        print('\nUpdating item search text...')
+        print('\nUpdating aggregated item search text...')
         fields_str = (
             'type_of_record',
             'title',
@@ -355,6 +364,20 @@ class SchmidtPlugin(IngestPlugin):
         print('Complete.')
 
     @db_session
+    def clear_records(self, db):
+        entity_classes = (
+            db.Item,
+            db.Funder,
+            db.Author,
+            db.Event,
+        )
+        print('\n\nDeleting existing records (except files)...')
+        for entity_class in entity_classes:
+            entity_class.select().delete()
+            commit()
+        print('Deleted.\n')
+
+    @db_session
     def clean_tags(self, db):
         """Delete tag instances that aren't used
 
@@ -398,10 +421,11 @@ class SchmidtPlugin(IngestPlugin):
         # define foreign key field
         fkey_field = 'Item IDs'
 
-        # for each funder
+        # for each author
         for d in self.author.to_dict(orient='records'):
             # skip if no name
-            if d['Publishing Organization Name'] is None or d['Publishing Organization Name'] == '':
+            if d['Publishing Organization Name'] is None or \
+                    d['Publishing Organization Name'] == '':
                 continue
 
             # get items this refers to
@@ -433,7 +457,13 @@ class SchmidtPlugin(IngestPlugin):
                 item.authors.add(upserted)
                 commit()
 
-        print('Funders updated.')
+        # Remove any authors that have no items
+        to_delete = select(
+            i for i in db.Author
+            if len(i.items) == 0
+        ).delete()
+        commit()
+        print('Authors updated.')
         return self
 
     @db_session
@@ -587,7 +617,7 @@ class SchmidtPlugin(IngestPlugin):
         # for each item
         for d in item_dicts:
             print(
-                f'''\nUpdating item {str(cur_item_dict)} of {str(n_item_dicts)}''')
+                f'''\nUpdating files for item {str(cur_item_dict)} of {str(n_item_dicts)}''')
             cur_item_dict = cur_item_dict + 1
 
             file_defined = d['PDF Attachments'] != ''

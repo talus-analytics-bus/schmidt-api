@@ -19,6 +19,7 @@ if __name__ == "__main__":
     client = plugin.load_client(airtable_key)
 
     # update various entity instances
+    client.clear_records(db)
     client.update_metadata(db)
     client.update_items(db, delete_old=True)
     client.update_funders(db)
