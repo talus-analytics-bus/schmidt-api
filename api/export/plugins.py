@@ -45,7 +45,7 @@ class SchmidtExportPlugin(ExcelExport):
 
     """
 
-    def __init__(self, db, filters, class_name):
+    def __init__(self, db, filters, search_text, class_name):
         self.db = db
         self.data = None
         self.init_irow = {
@@ -59,6 +59,7 @@ class SchmidtExportPlugin(ExcelExport):
             'data': 7
         }
         self.filters = filters
+        self.search_text = search_text
 
         # Define a sheet settings instance for each tab of the XLSX
         # If class_name is all, then export policies and plans, otherwise
@@ -66,7 +67,7 @@ class SchmidtExportPlugin(ExcelExport):
         export_policies_and_plans = class_name == 'all'
 
         # Bookmarks or filtered data or all data?
-        def get_export_type(filters):
+        def get_export_type(filters, search_text):
             """Get one-word description of the type of export, inferred from
             the filters provided.
 
@@ -81,12 +82,12 @@ class SchmidtExportPlugin(ExcelExport):
             """
             if 'id' in filters:
                 return 'bookmarks'
-            elif len(filters.keys()) > 0:
+            elif len(filters.keys()) > 0 or search_text is not None:
                 return 'selected'
             else:
                 return 'all'
 
-        def get_filter_prefix(key):
+        def get_filter_prefix(key, search_text):
             """If funder or author filter applied, add prefix to sheet title
             saying which it was to reduce ambiguity.
 
@@ -146,7 +147,10 @@ class SchmidtExportPlugin(ExcelExport):
             # if selected items, show as descriptive a title as possible
             # without exceeding a reasonable number of characters
             elif export_type == 'selected':
-                only_one_filter = len(filters.keys()) == 1
+                search_text_defined = search_text is not None
+                only_one_filter = len(filters.keys()) == 1 and \
+                    not search_text_defined
+                any_filter_defined = len(filters.keys()) > 0
                 suffix = ''
                 if only_one_filter:
                     for key in filters:
@@ -154,6 +158,7 @@ class SchmidtExportPlugin(ExcelExport):
                         # only describe what filter was applied if just one
                         # filter was applied, otherwise too many words
                         only_one_value = len(filters[key]) == 1
+
                         if only_one_value:
 
                             # if range of dates, format them
@@ -174,18 +179,19 @@ class SchmidtExportPlugin(ExcelExport):
                                 value = f'''Year {value}'''
 
                             # get prefix with filter description (if avail.)
-                            prefix = get_filter_prefix(key)
+                            prefix = get_filter_prefix(key, search_text)
                             value = prefix + value
 
                             # add suffix explaining what filter was applied,
                             # if any shown
                             suffix = ': ' + value
-                            
+                elif search_text_defined and not any_filter_defined:
+                    suffix = f''': Text matching "{search_text}"'''
                 return 'Selected items' + suffix
             else:
                 return 'All items in library'
 
-        export_type = get_export_type(filters)
+        export_type = get_export_type(filters, search_text)
         data_sheet_title = get_data_sheet_title(export_type)
 
         self.sheet_settings = []
@@ -302,7 +308,9 @@ class SchmidtExportPlugin(ExcelExport):
 
     def default_data_getter(self, class_name: str = 'Policy', filters: dict = None):
         # get items, applying filters (usually a list of IDs of items to return)
-        return schema.get_export_data(filters=self.filters)
+        return schema.get_export_data(
+            filters=self.filters, search_text=self.search_text
+        )
 
         def get_joined_entity(main_entity, joined_entity_string):
             """Given a main entity class and a string of joined entities like

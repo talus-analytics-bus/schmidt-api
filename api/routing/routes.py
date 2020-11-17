@@ -297,9 +297,11 @@ class ExportExcelGet(Resource):
         # get ids of items from URL params, if they exist
         ids = get_int_list(params.getlist('ids'))
         filters = {'id': ids} if len(ids) > 0 else dict()
+        search_text = params.get('search_text', None)
 
         send_file_args = schema.export(
             filters=filters,
+            search_text=search_text,
         )
         return send_file(
             send_file_args['content'],
@@ -323,11 +325,14 @@ class ExportExcelPost(Resource):
         """
 
         # get request body containing filters
+        params = request.args
         body = request.get_json()
         filters = body['filters'] if 'filters' in body else {}
+        search_text = params.get('search_text', None)
 
         send_file_args = schema.export(
             filters=filters,
+            search_text=search_text,
         )
         return send_file(
             send_file_args['content'],

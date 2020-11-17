@@ -932,7 +932,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
 
 
 @db_session
-def export(filters: dict = None):
+def export(filters: dict = None, search_text: str = None):
     """Return XLSX data export for data with the given filters applied.
 
     Parameters
@@ -945,7 +945,9 @@ def export(filters: dict = None):
         'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
     # Create Excel export file
-    export_instance = SchmidtExportPlugin(db, filters, class_name='Item')
+    export_instance = SchmidtExportPlugin(
+        db, filters, search_text=search_text, class_name='Item'
+    )
     content = export_instance.build()
 
     # return the file
@@ -1020,7 +1022,7 @@ def assign_field_value_to_export_row(row, d, field):
 @db_session
 @cached
 @jsonify_response
-def get_export_data(filters: dict = None):
+def get_export_data(filters: dict = None, search_text: str = None):
     """Returns items that match the filters for export.
 
     Parameters
@@ -1044,14 +1046,11 @@ def get_export_data(filters: dict = None):
 
     # get items to be exported
     ids = [] if 'id' not in filters else filters['id']
+    order_field = 'date'
     items = select(
         i for i in db.Item
-    ).order_by(raw_sql(f'''i.date DESC NULLS LAST'''))
-    filtered_items = apply_filters_to_items(items, filters)
-    # items = select(
-    #     i for i in db.Item
-    #     if i.id in ids or len(ids) == 0
-    # ).order_by(raw_sql(f'''i.date DESC NULLS LAST'''))
+    ).order_by(raw_sql(f'''i.{order_field} DESC NULLS LAST'''))
+    filtered_items = apply_filters_to_items(items, filters, search_text)
 
     # get rows
     rows = list()
