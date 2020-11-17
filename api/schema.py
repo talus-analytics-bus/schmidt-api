@@ -28,6 +28,7 @@ from .utils import jsonify_response, DefaultOrderedDict
 pp = pprint.PrettyPrinter(indent=4)
 s3 = boto3.client('s3')
 
+
 def cached(func):
     """ Caching """
     cache = {}
@@ -44,6 +45,7 @@ def cached(func):
         return results
 
     return wrapper
+
 
 @db_session
 def cached_items(func):
@@ -65,6 +67,7 @@ def cached_items(func):
         return results
 
     return wrapper
+
 
 @db_session
 def get_items(
@@ -305,8 +308,7 @@ def get_search(
             is_desc=is_desc,
             preview=preview,
             explain_results=explain_results,
-        )
-
+    )
 
     # paginate items
     # apply most efficient pagination method based on `items` type
@@ -366,7 +368,6 @@ def get_search(
             #         snippets[field] = re.sub(
             #             pattern, repl, getattr(d, field))
 
-
             # linked fields
             linked_fields_str = (
                 'authors.authoring_organization',
@@ -384,7 +385,7 @@ def get_search(
                         cur_snippet = dict()
                         cur_snippet[field] = re.sub(
                             pattern, repl, getattr(linked_instance, field)
-                            )
+                        )
                         cur_snippet['id'] = linked_instance.id
                         snippets[entity_name].append(
                             cur_snippet
@@ -439,6 +440,7 @@ def get_search(
             data['filter_counts'] = filter_counts
 
     return data
+
 
 @db_session
 def apply_filters_to_items(
@@ -679,6 +681,7 @@ def apply_ordering_to_items(
 
     return items
 
+
 @db_session
 def get_matching_instances(
     items,
@@ -741,9 +744,10 @@ def get_matching_instances(
         # relevance, truncating at a threshold number of them
         return matching_instances
 
+
 @db_session
 # @cached
-def get_metadata_value_counts(items):
+def get_metadata_value_counts(items=None, exclude=[]):
     """Given a set of items, returns the possible filter values in them and
     the number of items for each.
 
@@ -764,66 +768,165 @@ def get_metadata_value_counts(items):
     if items is None:
         items = db.Item
 
-    # Key topics
-    key_topics = select(
-        (
-            i.key_topics.name,
-            count(i),
-        )
-        for i in items
-    ).order_by(lambda x, y: desc(y))[:][:]
+    # exclude None-values if those are in the `exclude` list as 'null'
+    allow_none = 'null' not in exclude
 
-    # Authors
-    authors = select(
-        (author.authoring_organization, count(i), author.id)
-        for i in items
-        for author in i.authors
-    ).order_by(lambda x, y, z: desc(y))[:][:]
+    # define
+    to_check = [
+        {
+            'key': 'years',
+            'field': 'date',
+            'is_date_part': True,
+            'link_field': 'year'
+        },
+        {
+            'field': 'events',
+            'link_field': 'name',
+        },
+        {
+            'field': 'key_topics',
+            'link_field': 'name',  # if present, will link from item
+        },
+        {
+            'field': 'authors',
+            'link_field': 'authoring_organization',
+            'include_id': True
+        },
+        {
+            'key': 'author_types',
+            'field': 'authors',
+            'link_field': 'type_of_authoring_organization',
+        },
+        {
+            'field': 'funders',
+            'link_field': 'name',
+        },
+        {
+            'key': 'types_of_record',
+            'field': 'type_of_record',
+        },
+    ]
 
+    # return the correct lambda func for sorting "by value" query results
+    # based on the whether a third element in the array list is included
+    def get_order_by_func(include_id):
+        if include_id:
+            return lambda x, y, z: desc(y)
+        else:
+            return lambda x, y: desc(y)
 
-    # Author types
-    author_types = select(
-        (author.type_of_authoring_organization, count(i))
-        for i in items
-        for author in i.authors
-    ).order_by(lambda x, y: desc(y))[:][:]
+    # return the appropriate "by value" query given whether to include the
+    # ID field or not
+    def get_query_body(include_id, link_field):
+        order_by_func = get_order_by_func(include_id)
+        if include_id:
+            return select(
+                (
+                    getattr(j, link_field),
+                    count(i),
+                    j.id
+                )
+                for i in items
+                for j in getattr(i, field)
+                if getattr(j, link_field) not in exclude
+                and (getattr(j, link_field) is not None or allow_none)
+            ).order_by(order_by_func)[:][:]
+        else:
+            return select(
+                (
+                    getattr(j, link_field),
+                    count(i)
+                )
+                for i in items
+                for j in getattr(i, field)
+                if getattr(j, link_field) not in exclude
+                and (getattr(j, link_field) is not None or allow_none)
+            ).order_by(order_by_func)[:][:]
 
-    # Funder names
-    funders = select(
-        (funder.name, count(i))
-        for i in items
-        for funder in i.funders
-    ).order_by(lambda x, y: desc(y))[:][:]
+    # init output dict
+    output = dict()
 
-    # Years
-    years = select(
-        (i.date.year, count(i))
-        for i in items
-    ).order_by(lambda x, y: desc(y))[:][:]
+    # iterate on each filter category and define the number of unique items
+    # in it overall and by value, except those in `exclude`
+    for d in to_check:
 
-    # Events
-    events = select(
-        (event.name, count(i))
-        for i in items
-        for event in i.events
-    ).order_by(lambda x, y: desc(y))[:][:]
+        # init key params
+        field = d['field']
+        key = d.get('key', d['field'])
+        is_linked = 'link_field' in d
+        is_date_part = d.get('is_date_part', False)
 
-    # Item type
-    types_of_record = select(
-        (i.type_of_record, count(i))
-        for i in items
-    ).order_by(lambda x, y: desc(y))[:][:]
+        # init output dict section
+        output[key] = dict()
 
+        if is_date_part:
+            # error handling
+            if 'link_field' not in d:
+                raise KeyError(
+                    'Must define a `link_field` value for date'
+                    ' parts, e.g., \'year\'')
 
-    output = {
-        'key_topics': key_topics,
-        'authors': authors,
-        'author_types': author_types,
-        'funders': funders,
-        'years': years,
-        'types_of_record': types_of_record,
-        'events': events,
-    }
+            link_field = d['link_field']  # the date part, e.g., `year`
+
+            # get unique count of items that meet exclusion criteria
+            unique_count = select(
+                i
+                for i in items
+                if str(getattr(getattr(i, field), link_field)) not in exclude
+                and (str(getattr(getattr(i, field), link_field)) is not None or allow_none)
+            ).count()
+            output[key]['unique'] = unique_count
+
+            by_value_counts = select(
+                (
+                    getattr(getattr(i, field), link_field),
+                    count(i)
+                )
+                for i in items
+                if str(getattr(getattr(i, field), link_field)) not in exclude
+                and (str(getattr(getattr(i, field), link_field)) is not None or allow_none)
+            ).order_by(get_order_by_func(False))[:][:]
+            output[key]['by_value'] = by_value_counts
+
+        # count linked fields specially
+        elif is_linked:
+            link_field = d['link_field']
+            include_id = d.get('include_id', False)
+
+            # get unique count of items that meet exclusion criteria
+            unique_count = select(
+                i.id
+                for i in items
+                for j in getattr(i, field)
+                if getattr(j, link_field) not in exclude
+                and (getattr(j, link_field) is not None or allow_none)
+            ).count()
+            output[key]['unique'] = unique_count
+
+            by_value_counts = get_query_body(include_id, link_field)
+            output[key]['by_value'] = by_value_counts
+
+        # count standard fields
+        else:
+            # get unique count of items that meet exclusion criteria
+            unique_count = select(
+                i.id
+                for i in items
+                if getattr(i, field) not in exclude
+                and (getattr(i, field) is not None or allow_none)
+            ).count()
+            output[key]['unique'] = unique_count
+
+            by_value_counts = select(
+                (
+                    getattr(i, field),
+                    count(i)
+                )
+                for i in items
+                if getattr(i, field) not in exclude
+                and (getattr(i, field) is not None or allow_none)
+            ).order_by(get_order_by_func(False))[:][:]
+            output[key]['by_value'] = by_value_counts
 
     return output
 
@@ -854,6 +957,7 @@ def export(filters: dict = None):
         'attachment_filename': attachment_filename,
         'as_attachment': True
     }
+
 
 def assign_field_value_to_export_row(row, d, field):
     """Given the row dict and the `field` info, assigns the value to the row,
@@ -962,6 +1066,7 @@ def get_export_data(filters: dict = None):
 
     return rows
 
+
 @db_session
 @jsonify_response
 def get_export_legend_data():
@@ -988,6 +1093,7 @@ def get_export_legend_data():
             field.possible_values
 
     return [def_row, val_row]
+
 
 @db_session
 @cached_items
@@ -1034,6 +1140,7 @@ def get_ordered_items_and_filter_counts(
 
     # order items
     return results
+
 
 @cached_items
 def get_all_items():

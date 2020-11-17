@@ -116,6 +116,7 @@ body_model = api.schema_model('Body_Model', {
     'type': 'object'
 })
 
+
 def get_int_list(str_list):
     """Given list of strings, return integer representations as list.
 
@@ -275,7 +276,9 @@ class Filter_Counts(Resource):
     @db_session
     @format_response
     def get(self):
-        return schema.get_metadata_value_counts(None)
+        # get ids of items from URL params
+        exclude = request.args.getlist('exclude')
+        return schema.get_metadata_value_counts(items=None, exclude=exclude)
 
 
 # XLSX download of items data
@@ -305,6 +308,8 @@ class ExportExcelGet(Resource):
         )
 
 # XLSX download of items data
+
+
 @api.route("/post/export/excel", methods=["POST"])
 class ExportExcelPost(Resource):
     """Return XLSX file of data with specified filters applied."""
