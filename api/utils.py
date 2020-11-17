@@ -2,6 +2,8 @@
 import functools
 import json
 import pytz
+import traceback
+import logging
 from collections import defaultdict, OrderedDict, Callable
 from datetime import date
 
@@ -14,7 +16,6 @@ from werkzeug.exceptions import NotFound
 
 # Local libraries
 from .db_models import db
-
 
 
 # pretty printing: for printing JSON objects legibly
@@ -55,7 +56,7 @@ only = {
         'id',
         'name',
     ],
-    'Tag':'name'
+    'Tag': 'name'
 }
 
 
@@ -155,40 +156,63 @@ def passes_filters(instance, filters):
 # { data: [{...}, {...}] }
 
 
+# does this dict represent an error?
+def is_error(d):
+    return d.get('is_error', False)
+
+
 def format_response(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Load unformatted data from prior function return statement.
-        unformattedData = func(*args, **kwargs)
+        unformattedData = None
+        status_code = None
+        try:
+            # get unformatted data
+            unformattedData = func(*args, **kwargs)
 
-        # Init formatted data.
-        formattedData = []
+            # Init formatted data.
+            formattedData = []
 
-        # If the type of unformatted data was a query result, parse it as
-        # items in a dictionary.
-        if type(unformattedData) == QueryResult:
-            formattedData = [r.to_dict() for r in unformattedData]
+            # If the type of unformatted data was a query result, parse it as
+            # items in a dictionary.
+            if type(unformattedData) == QueryResult:
+                formattedData = [r.to_dict() for r in unformattedData]
 
-        # If dict, return as-is
-        elif type(unformattedData) in (dict, defaultdict):
-            formattedData = unformattedData
+            # If dict, return as-is
+            elif type(unformattedData) in (dict, defaultdict):
+                formattedData = unformattedData
 
-        elif type(unformattedData) == Response:
-            formattedData = unformattedData
+            elif type(unformattedData) == Response:
+                formattedData = unformattedData
 
-        # Otherwise, it is a tuple or list, and should be returned directly.
-        else:
-            formattedData = unformattedData[:]
-        results = {
-            "data": formattedData, "error": False, "message": "Success"
-        }
+            # Otherwise, it is a tuple or list, and should be returned directly.
+            else:
+                formattedData = unformattedData[:]
+            results = {
+                "data": formattedData, "error": False, "message": "Success"
+            }
+        except Exception as e:
+            exc = traceback.format_exc()
+            logging.error(exc)
+            results = {
+                "data": None, "error": True,
+                "message": e.__class__.__name__ + ': ' + e.args[0],
+                "traceback": exc
+            }
+            status_code = 500
 
         # Convert entire response to JSON and return it.
-        return json.loads(json.dumps(results, default=jsonify_custom))
+        json_response = json.loads(json.dumps(results, default=jsonify_custom))
+        if status_code is not None:
+            return json_response, status_code
+        else:
+            return json_response
 
     # Return the function wrapper (allows a succession of decorator functions to
     # be called)
     return wrapper
+
 
 def jsonify_response(func):
     """Decorator to ensure all PonyORM entities in a schema function response
@@ -207,11 +231,12 @@ def jsonify_response(func):
     # be called)
     return wrapper
 
+
 class DefaultOrderedDict(OrderedDict):
     # Source: http://stackoverflow.com/a/6190500/562769
     def __init__(self, default_factory=None, *a, **kw):
         if (default_factory is not None and
-           not isinstance(default_factory, Callable)):
+                not isinstance(default_factory, Callable)):
             raise TypeError('first argument must be callable')
         OrderedDict.__init__(self, *a, **kw)
         self.default_factory = default_factory
