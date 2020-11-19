@@ -53,6 +53,7 @@ class Author(db.Entity):
     international_national = Optional(str)
     if_national_country_of_authoring_org = Optional(str, nullable=True)
     if_national_iso2_of_authoring_org = Optional(str, nullable=True)
+    acronym = Optional(str)
 
     # Relationships
     items = Set('Item', table='authors_to_items')

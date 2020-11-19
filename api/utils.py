@@ -47,6 +47,7 @@ only = {
         'type_of_authoring_organization',
         'if_national_country_of_authoring_org',
         'if_national_iso2_of_authoring_org',
+        'acronym',
     ],
     'Funder': [
         'id',

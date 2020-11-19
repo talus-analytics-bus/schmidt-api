@@ -324,6 +324,7 @@ class SchmidtPlugin(IngestPlugin):
             'funders.name',
             'events.name',
             'files.scraped_text',
+            'authors.acronym',
         )
         all_items = select(i for i in db.Item)
 
@@ -440,6 +441,7 @@ class SchmidtPlugin(IngestPlugin):
                     'authoring_organization': d['Publishing Organization Name'],
                     'type_of_authoring_organization': d['Type of Publishing Organization'],
                     'international_national': d['Publishing Org- International/National'],
+                    'acronym': d['Abbreviations lookup'],
                 }
                 if d['Country name'] != '':
                     upsert_set['if_national_country_of_authoring_org'] = d['Country name'][0]
