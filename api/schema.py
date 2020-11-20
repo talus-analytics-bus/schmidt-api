@@ -852,7 +852,7 @@ def get_metadata_value_counts(
         },
         {
             'field': 'authors',
-            'filter_field': 'author.authoring_organization',
+            'filter_field': 'author.id',
             'link_field': 'authoring_organization',
             'include_id_and_acronym': True
         },
