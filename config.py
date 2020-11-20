@@ -132,7 +132,7 @@ class Config:
             self.db['username'] = secret['username']
             self.db['host'] = secret['host']
             self.db['password'] = secret['password']
-            self.db['database'] = 'schmidt'
+            self.db['database'] = os.environ.get('DBNAME')
 
         # Define database engine based on db connection parameters.
         self.engine = create_engine(f"postgresql+psycopg2://{self.db['username']}:{self.db['password']}@{self.db['host']}:5432/{self.db['database']}",
