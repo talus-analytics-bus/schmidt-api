@@ -372,6 +372,7 @@ def get_search(
             # linked fields
             linked_fields_str = (
                 'authors.authoring_organization',
+                'authors.acronym',
                 'funders.name',
             )
             for field_tmp in linked_fields_str:
@@ -381,12 +382,36 @@ def get_search(
                 for linked_instance in getattr(d, entity_name):
                     if cur_search_text in getattr(linked_instance, field).lower():
                         at_least_one = True
+
+                        # if the field is the author's acronym, count this as
+                        # a match with the entire author's name
+                        count_as_entire_author_name = \
+                            field_tmp == 'authors.acronym'
+
+                        # get value of match
+                        value = getattr(linked_instance, field) if not \
+                            count_as_entire_author_name else \
+                            linked_instance.authoring_organization
+
+                        if count_as_entire_author_name:
+                            field = 'authoring_organization'
+
                         if entity_name not in snippets:
                             snippets[entity_name] = []
+
+                        # append matching text snippet
                         cur_snippet = dict()
-                        cur_snippet[field] = re.sub(
-                            pattern, repl, getattr(linked_instance, field)
-                        )
+
+                        # highlight relevant snippet, unless this is an acronym
+                        # match, in which case highlight entire publisher name
+                        if not count_as_entire_author_name:
+                            cur_snippet[field] = re.sub(
+                                pattern, repl, value
+                            )
+                        else:
+                            cur_snippet[field] = \
+                                f'''<highlight>{value}</highlight>'''
+
                         cur_snippet['id'] = linked_instance.id
                         snippets[entity_name].append(
                             cur_snippet
