@@ -11,6 +11,7 @@ from collections import defaultdict
 # 3rd party modules
 import boto3
 import pdfplumber
+from progress.bar import Bar
 from pony.orm import db_session, commit, get, select, delete, StrArray
 from pony.orm.core import CacheIndexError, ObjectNotFound
 import pprint
@@ -616,11 +617,16 @@ class SchmidtPlugin(IngestPlugin):
         n_item_dicts = len(item_dicts)
         cur_item_dict = 0
 
+        # define progress bar for item update cycle
+        bar = Bar('\nUpdating files for items', max=n_item_dicts)
+
         # for each item
         for d in item_dicts:
             print(
                 f'''\nUpdating files for item {str(cur_item_dict)} of {str(n_item_dicts)}''')
             cur_item_dict = cur_item_dict + 1
+
+            bar.next()
 
             file_defined = d['PDF Attachments'] != ''
             item = db.Item[int(d['ID (automatically assigned)'])]
@@ -740,6 +746,7 @@ class SchmidtPlugin(IngestPlugin):
 
                 # link item to files
                 item.files = all_upserted
+        bar.finish()
 
         # assign s3 permalinks
         api_url = 'https://schmidt-api.talusanalytics.com/get/file/'
