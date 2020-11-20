@@ -745,7 +745,6 @@ class SchmidtPlugin(IngestPlugin):
                 # link item to files
                 item.files = all_upserted
         bar.finish()
-        print('Files updated.')
 
         # assign s3 permalinks
         api_url = 'https://schmidt-api.talusanalytics.com/get/file/'
@@ -754,13 +753,19 @@ class SchmidtPlugin(IngestPlugin):
                 f'''{api_url}{file.filename.replace('?', '')}?id={file.id}'''
             commit()
 
-        # # delete file records and S3 files if they are not to be shown in
-        # # the site
-        # files_to_delete = \
-        #     db.File.select().filter(lambda x: x.exclude_from_site)
-        #
-        # s3.Object(S3_BUCKET_NAME, 'your-key').delete()
-        #
+        # delete file records and S3 files if they are not to be shown in
+        # the site
+        files_to_delete = \
+            db.File.select().filter(lambda x: x.exclude_from_site)
+        n_files_to_delete = files_to_delete.count()
+
+        print('')
+        bar = Bar('Deleting excluded files', max=n_files_to_delete)
+        for file in files_to_delete:
+            # delete s3 file
+            s3.Object(S3_BUCKET_NAME, 'your-key').delete()
+
+        print('Files updated.')
         return self
 
     def load_metadata(self):
