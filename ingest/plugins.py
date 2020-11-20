@@ -605,9 +605,6 @@ class SchmidtPlugin(IngestPlugin):
             print('[FATAL ERROR] Please `update_items` before other entities.')
             sys.exit(1)
 
-        # update authors
-        print('\nUpdating files...')
-
         # get all s3 bucket keys
         self.s3_bucket_keys = get_s3_bucket_keys(s3_bucket_name=S3_BUCKET_NAME)
 
@@ -619,12 +616,11 @@ class SchmidtPlugin(IngestPlugin):
         cur_item_dict = 0
 
         # define progress bar for item update cycle
-        bar = Bar('\nUpdating files for items', max=n_item_dicts)
+        print('')
+        bar = Bar('Updating files', max=n_item_dicts)
 
         # for each item
         for d in item_dicts:
-            print(
-                f'''\nUpdating files for item {str(cur_item_dict)} of {str(n_item_dicts)}''')
             cur_item_dict = cur_item_dict + 1
 
             bar.next()
@@ -749,6 +745,7 @@ class SchmidtPlugin(IngestPlugin):
                 # link item to files
                 item.files = all_upserted
         bar.finish()
+        print('Files updated.')
 
         # assign s3 permalinks
         api_url = 'https://schmidt-api.talusanalytics.com/get/file/'
@@ -764,7 +761,6 @@ class SchmidtPlugin(IngestPlugin):
         #
         # s3.Object(S3_BUCKET_NAME, 'your-key').delete()
         #
-        print('Files updated.')
         return self
 
     def load_metadata(self):
