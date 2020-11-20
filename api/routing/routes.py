@@ -278,7 +278,9 @@ class Filter_Counts(Resource):
     def get(self):
         # get ids of items from URL params
         exclude = request.args.getlist('exclude')
-        return schema.get_metadata_value_counts(items=None, exclude=exclude)
+        return schema.get_metadata_value_counts(
+            items=None, exclude=exclude, filters={}
+        )
 
 
 # XLSX download of items data

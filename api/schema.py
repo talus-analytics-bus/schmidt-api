@@ -7,6 +7,7 @@ import functools
 import pytz
 import re
 import math
+import logging
 from datetime import datetime, timedelta, date
 from io import BytesIO
 from dateutil.relativedelta import relativedelta
@@ -252,8 +253,7 @@ def get_file(id: int, get_thumb: bool):
     try:
         s3.download_fileobj('schmidt-storage', key, data)
     except Exception as e:
-        print('e')
-        print(e)
+        logging.exception(e)
         return 'Document not found (404)'
 
     # # return to start of IO stream
@@ -772,8 +772,39 @@ def get_matching_instances(
 
 
 @db_session
+def get_items_if_other_filters_in_category_not_applied(
+    items: any = None, filters: dict = {}, filter_field: str = None,
+    search_text: str = None
+):
+    """Return counts for each value in a filter category if that filter were
+    applied to the current item set with all other filter categories applied,
+    but no other values from within that specific category.
+
+
+    """
+
+    if filters is None or len(filters.keys()) == 0:
+        return items
+    else:
+
+        filters_not_for_field = {
+            k: v for (k, v) in filters.items() if k != filter_field
+        }
+
+        filtered_items = apply_filters_to_items(
+            items=items,
+            filters=filters_not_for_field,
+            search_text=search_text,
+        )
+        return filtered_items
+
+
+@db_session
 # @cached
-def get_metadata_value_counts(items=None, exclude=[]):
+def get_metadata_value_counts(
+    items=None, all_items=None, exclude=[], filters=None,
+    search_text: str = None
+):
     """Given a set of items, returns the possible filter values in them and
     the number of items for each.
 
@@ -790,9 +821,13 @@ def get_metadata_value_counts(items=None, exclude=[]):
         Description of returned object.
 
     """
-    # print(items)
+
+    # set items to all items if they are not assigned
     if items is None:
         items = db.Item
+
+    if all_items is None:
+        all_items = db.Item
 
     # exclude None-values if those are in the `exclude` list as 'null'
     allow_none = 'null' not in exclude
@@ -802,12 +837,14 @@ def get_metadata_value_counts(items=None, exclude=[]):
         {
             'key': 'years',
             'field': 'date',
+            'filter_field': 'years',
             'is_date_part': True,
-            'link_field': 'year'
+            'link_field': 'year',
         },
         {
             'field': 'events',
             'link_field': 'name',
+            'filter_field': 'event.name'
         },
         {
             'field': 'key_topics',
@@ -822,10 +859,12 @@ def get_metadata_value_counts(items=None, exclude=[]):
             'key': 'author_types',
             'field': 'authors',
             'link_field': 'type_of_authoring_organization',
+            'filter_field': 'author.type_of_authoring_organization',
         },
         {
             'field': 'funders',
             'link_field': 'name',
+            'filter_field': 'funder.name',
         },
         {
             'key': 'types_of_record',
@@ -843,7 +882,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
 
     # return the appropriate "by value" query given whether to include the
     # ID field or not
-    def get_query_body(include_id_and_acronym, link_field):
+    def get_query_body(include_id_and_acronym, link_field, field_items):
         order_by_func = get_order_by_func(include_id_and_acronym)
         if include_id_and_acronym:
             return select(
@@ -853,7 +892,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
                     count(i),
                     j.id
                 )
-                for i in items
+                for i in field_items
                 for j in getattr(i, field)
                 if getattr(j, link_field) not in exclude
                 and (getattr(j, link_field) is not None or allow_none)
@@ -864,7 +903,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
                     getattr(j, link_field),
                     count(i)
                 )
-                for i in items
+                for i in field_items
                 for j in getattr(i, field)
                 if getattr(j, link_field) not in exclude
                 and (getattr(j, link_field) is not None or allow_none)
@@ -879,9 +918,18 @@ def get_metadata_value_counts(items=None, exclude=[]):
 
         # init key params
         field = d['field']
+        filter_field = d.get('filter_field', field)
         key = d.get('key', d['field'])
         is_linked = 'link_field' in d
         is_date_part = d.get('is_date_part', False)
+
+        # get `items` to use for this category
+        field_items = get_items_if_other_filters_in_category_not_applied(
+            items=all_items,
+            filters=filters,
+            filter_field=filter_field,
+            search_text=search_text
+        )
 
         # init output dict section
         output[key] = dict()
@@ -898,7 +946,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
             # get unique count of items that meet exclusion criteria
             unique_count = select(
                 i
-                for i in items
+                for i in field_items
                 if str(getattr(getattr(i, field), link_field)) not in exclude
                 and (str(getattr(getattr(i, field), link_field)) is not None or allow_none)
             ).count()
@@ -909,7 +957,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
                     getattr(getattr(i, field), link_field),
                     count(i)
                 )
-                for i in items
+                for i in field_items
                 if str(getattr(getattr(i, field), link_field)) not in exclude
                 and (str(getattr(getattr(i, field), link_field)) is not None or allow_none)
             ).order_by(get_order_by_func(False))[:][:]
@@ -923,14 +971,16 @@ def get_metadata_value_counts(items=None, exclude=[]):
             # get unique count of items that meet exclusion criteria
             unique_count = select(
                 i.id
-                for i in items
+                for i in field_items
                 for j in getattr(i, field)
                 if getattr(j, link_field) not in exclude
                 and (getattr(j, link_field) is not None or allow_none)
             ).count()
             output[key]['unique'] = unique_count
 
-            by_value_counts = get_query_body(include_id_and_acronym, link_field)
+            by_value_counts = get_query_body(
+                include_id_and_acronym, link_field, field_items
+            )
             output[key]['by_value'] = by_value_counts
 
         # count standard fields
@@ -938,7 +988,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
             # get unique count of items that meet exclusion criteria
             unique_count = select(
                 i.id
-                for i in items
+                for i in field_items
                 if getattr(i, field) not in exclude
                 and (getattr(i, field) is not None or allow_none)
             ).count()
@@ -949,7 +999,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
                     getattr(i, field),
                     count(i)
                 )
-                for i in items
+                for i in field_items
                 if getattr(i, field) not in exclude
                 and (getattr(i, field) is not None or allow_none)
             ).order_by(get_order_by_func(False))[:][:]
@@ -1149,7 +1199,10 @@ def get_ordered_items_and_filter_counts(
     ) if preview else []
 
     # get filter value counts for current set
-    filter_counts = get_metadata_value_counts(items=filtered_items)
+    filter_counts = get_metadata_value_counts(
+        items=filtered_items, all_items=all_items, filters=filters,
+        search_text=search_text
+    )
 
     # get ordered items
     ordered_items_q = apply_ordering_to_items(
