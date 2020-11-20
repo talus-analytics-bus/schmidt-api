@@ -230,9 +230,10 @@ class SchmidtPlugin(IngestPlugin):
                             if value == '':
                                 value = list()
                         elif field_datum.type == 'bool':
-                            if value == 'Yes':
+
+                            if value in ('Yes', 'checked', True, 'True'):
                                 value = True
-                            elif value == 'No':
+                            elif value in ('No', '', None, False, 'False'):
                                 value = False
                             else:
                                 value = None
