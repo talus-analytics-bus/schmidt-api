@@ -11,6 +11,7 @@ from collections import defaultdict
 # 3rd party modules
 import boto3
 import pdfplumber
+from progress.bar import Bar
 from pony.orm import db_session, commit, get, select, delete, StrArray
 from pony.orm.core import CacheIndexError, ObjectNotFound
 import pprint
@@ -325,6 +326,7 @@ class SchmidtPlugin(IngestPlugin):
             'funders.name',
             'events.name',
             'files.scraped_text',
+            'authors.acronym',
         )
         all_items = select(i for i in db.Item)
 
@@ -441,6 +443,7 @@ class SchmidtPlugin(IngestPlugin):
                     'authoring_organization': d['Publishing Organization Name'],
                     'type_of_authoring_organization': d['Type of Publishing Organization'],
                     'international_national': d['Publishing Org- International/National'],
+                    'acronym': d['Abbreviations lookup'],
                 }
                 if d['Country name'] != '':
                     upsert_set['if_national_country_of_authoring_org'] = d['Country name'][0]
@@ -615,11 +618,16 @@ class SchmidtPlugin(IngestPlugin):
         n_item_dicts = len(item_dicts)
         cur_item_dict = 0
 
+        # define progress bar for item update cycle
+        bar = Bar('\nUpdating files for items', max=n_item_dicts)
+
         # for each item
         for d in item_dicts:
             print(
                 f'''\nUpdating files for item {str(cur_item_dict)} of {str(n_item_dicts)}''')
             cur_item_dict = cur_item_dict + 1
+
+            bar.next()
 
             file_defined = d['PDF Attachments'] != ''
             item = db.Item[int(d['ID (automatically assigned)'])]
@@ -740,6 +748,7 @@ class SchmidtPlugin(IngestPlugin):
 
                 # link item to files
                 item.files = all_upserted
+        bar.finish()
 
         # assign s3 permalinks
         api_url = 'https://schmidt-api.talusanalytics.com/get/file/'

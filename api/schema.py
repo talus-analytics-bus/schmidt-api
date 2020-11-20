@@ -15,7 +15,8 @@ from collections import defaultdict
 # Third party libraries
 import boto3
 import pprint
-from pony.orm import select, db_session, raw_sql, distinct, count, StrArray, desc
+from pony.orm import select, db_session, raw_sql, distinct, count, StrArray, \
+    desc, coalesce
 from flask import send_file
 
 # Local libraries
@@ -790,7 +791,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
         {
             'field': 'authors',
             'link_field': 'authoring_organization',
-            'include_id': True
+            'include_id_and_acronym': True
         },
         {
             'key': 'author_types',
@@ -809,20 +810,21 @@ def get_metadata_value_counts(items=None, exclude=[]):
 
     # return the correct lambda func for sorting "by value" query results
     # based on the whether a third element in the array list is included
-    def get_order_by_func(include_id):
-        if include_id:
-            return lambda x, y, z: desc(y)
+    def get_order_by_func(include_id_and_acronym):
+        if include_id_and_acronym:
+            return lambda w, x, y, z: desc(x)
         else:
             return lambda x, y: desc(y)
 
     # return the appropriate "by value" query given whether to include the
     # ID field or not
-    def get_query_body(include_id, link_field):
-        order_by_func = get_order_by_func(include_id)
-        if include_id:
+    def get_query_body(include_id_and_acronym, link_field):
+        order_by_func = get_order_by_func(include_id_and_acronym)
+        if include_id_and_acronym:
             return select(
                 (
                     getattr(j, link_field),
+                    coalesce(j.acronym, ''),
                     count(i),
                     j.id
                 )
@@ -891,7 +893,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
         # count linked fields specially
         elif is_linked:
             link_field = d['link_field']
-            include_id = d.get('include_id', False)
+            include_id_and_acronym = d.get('include_id_and_acronym', False)
 
             # get unique count of items that meet exclusion criteria
             unique_count = select(
@@ -903,7 +905,7 @@ def get_metadata_value_counts(items=None, exclude=[]):
             ).count()
             output[key]['unique'] = unique_count
 
-            by_value_counts = get_query_body(include_id, link_field)
+            by_value_counts = get_query_body(include_id_and_acronym, link_field)
             output[key]['by_value'] = by_value_counts
 
         # count standard fields
