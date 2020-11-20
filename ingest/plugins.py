@@ -643,6 +643,7 @@ class SchmidtPlugin(IngestPlugin):
                         'source_permalink': file['url'],
                         'filename': file['filename'],
                         's3_permalink': None,
+                        'exclude_from_site': item.exclude_pdf_from_site,
                         'mime_type': file['type'],
                         'source_thumbnail_permalink': source_thumbnail_permalink,
                         's3_thumbnail_permalink': None,
