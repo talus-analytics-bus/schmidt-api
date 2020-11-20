@@ -383,7 +383,7 @@ class SchmidtPlugin(IngestPlugin):
         """Delete tag instances that aren't used
 
         """
-        print('\nCleaning tags...')
+        print('\nDeleting unused tags from database...')
 
         # delete tags that are not used by any items
         delete_tags = select(
