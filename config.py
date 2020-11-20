@@ -128,6 +128,8 @@ class Config:
             for d in cfg['DEFAULT']:
                 self.db[d] = cfg['DEFAULT'].get(d)
         else:
+            print("os.environ.get('DBNAME')")
+            print(os.environ.get('DBNAME'))
             secret = json.loads(get_secret())
             self.db['username'] = secret['username']
             self.db['host'] = secret['host']
