@@ -628,7 +628,8 @@ class SchmidtPlugin(IngestPlugin):
             file_defined = d['PDF Attachments'] != ''
             item = db.Item[int(d['ID (automatically assigned)'])]
             item_defined = item is not None
-            if not file_defined or not item_defined:
+            if not file_defined or not item_defined or \
+                    item.exclude_pdf_from_site:
                 continue
             else:
                 file_list = d['PDF Attachments']
@@ -709,8 +710,9 @@ class SchmidtPlugin(IngestPlugin):
                                             upsert_set['scraped_text'] = scraped_text.replace(
                                                 '\x00', '')
                                         except Exception as e:
-                                            print(
-                                                'File does not appear to be PDF, skipping scraping: ' + file['filename'])
+                                            pass
+                                            # print(
+                                            #     'File does not appear to be PDF, skipping scraping: ' + file['filename'])
 
                                     if not file_already_in_s3:
                                         # add file to s3
@@ -729,7 +731,7 @@ class SchmidtPlugin(IngestPlugin):
 
                                         field = file_to_check['field']
                                         upsert_set[field] = 'https://schmidt-storage.s3-us-west-1.amazonaws.com/' + file_key
-                                        print('Added file to s3: ' + file_key)
+                                        # print('Added file to s3: ' + file_key)
 
                     # upsert files
                     action, upserted = upsert(
@@ -759,12 +761,26 @@ class SchmidtPlugin(IngestPlugin):
             db.File.select().filter(lambda x: x.exclude_from_site)
         n_files_to_delete = files_to_delete.count()
 
-        print('')
-        bar = Bar('Deleting excluded files', max=n_files_to_delete)
-        for file in files_to_delete:
-            # delete s3 file
-            s3.Object(S3_BUCKET_NAME, 'your-key').delete()
+        # define s3 resource client
+        s3_resource = boto3.resource('s3')
 
+        n_deleted = 0
+        bar = Bar('Deleting files that have been marked "exclude" since last update',
+                  max=n_files_to_delete)
+        for file in files_to_delete:
+            bar.next()
+            # delete s3 file and thumb, if it exists
+            s3_filename = file.s3_filename
+            s3_resource.Object(S3_BUCKET_NAME, s3_filename).delete()
+            if file.s3_thumbnail_permalink is not None:
+                s3_resource.Object(
+                    S3_BUCKET_NAME, s3_filename + '_thumb'
+                ).delete()
+            file.delete()
+            commit()
+            n_deleted += 1
+        bar.finish()
+        print('Deleted ' + str(n_deleted) + ' files (plus thumbnails) from database and S3.')
         print('Files updated.')
         return self
 
