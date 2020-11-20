@@ -31,6 +31,7 @@ class Item(db.Entity):
     authoring_organization_has_governance_authority = Optional(bool, nullable=True)
     source_id = Optional(str)
     tags = Set('Tag')
+    exclude_pdf_from_site = Required(bool, default=False)
 
     # Relationships
     authors = Set('Author', table='authors_to_items')
@@ -49,7 +50,7 @@ class Author(db.Entity):
     id = PrimaryKey(int, auto=True)
     type_of_authoring_organization = Optional(str)
     authoring_organization = Required(str)
-    authoring_organization_sub_organization = Optional(str) # TODO
+    authoring_organization_sub_organization = Optional(str)  # TODO
     international_national = Optional(str)
     if_national_country_of_authoring_org = Optional(str, nullable=True)
     if_national_iso2_of_authoring_org = Optional(str, nullable=True)
