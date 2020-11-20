@@ -748,6 +748,13 @@ class SchmidtPlugin(IngestPlugin):
                 f'''{api_url}{file.filename.replace('?', '')}?id={file.id}'''
             commit()
 
+        # # delete file records and S3 files if they are not to be shown in
+        # # the site
+        # files_to_delete = \
+        #     db.File.select().filter(lambda x: x.exclude_from_site)
+        #
+        # s3.Object(S3_BUCKET_NAME, 'your-key').delete()
+        #
         print('Files updated.')
         return self
 
