@@ -230,6 +230,10 @@ class SchmidtPlugin(IngestPlugin):
                         elif field_datum.type == 'StrArray':
                             if value == '':
                                 value = list()
+                            elif type(value) == str:
+                                value = value.replace('; and', ';')
+                                value = value.replace('; ', ';')
+                                value = value.split(';')
                         elif field_datum.type == 'bool':
 
                             if value in ('Yes', 'checked', True, 'True'):
@@ -316,6 +320,7 @@ class SchmidtPlugin(IngestPlugin):
             'title',
             'description',
             'link',
+            'sub_organizations',
         )
         fields_tag = (
             'key_topics',
@@ -331,11 +336,16 @@ class SchmidtPlugin(IngestPlugin):
         all_items = select(i for i in db.Item)
 
         # add plain fields on the Item entity, like name and desc
+        bar = Bar('Updating search text', max=all_items.count())
         for i in all_items:
+            bar.next()
             search_text = ''
             file_search_text = ''
             for field in fields_str:
-                search_text += getattr(i, field) + ' '
+                value = getattr(i, field)
+                if type(value) == list:
+                    value = " ".join(value)
+                search_text += value + ' '
             for field in fields_tag:
                 tag_names = select(
                     tag.name
@@ -357,13 +367,14 @@ class SchmidtPlugin(IngestPlugin):
                 if linked_field == 'scraped_text':
                     str_to_concat = str_to_concat[0:100000]
                     file_search_text += str_to_concat
-
-                search_text += str_to_concat
+                else:
+                    search_text += str_to_concat
 
             # update search text
             i.search_text = search_text.lower()
             i.file_search_text = file_search_text.lower()
             commit()
+        bar.finish()
         print('Complete.')
 
     @db_session
@@ -842,6 +853,8 @@ class SchmidtPlugin(IngestPlugin):
         upserted = set()
         n_inserted = 0
         n_updated = 0
+        db.Metadata.select().delete()
+        commit()
 
         for i, d in full_dd.iterrows():
             if d['Category'] != '':
