@@ -359,16 +359,32 @@ def get_search(
 
             # tag fields
             # TODO
-            # fields_tag_str = (
-            #     ('key_topics', 'name'),
-            # )
-            # for field, linked_field in fields_tag_str:
-            #     tags = getattr(getattr(d, field), linked_field)
-            #
-            #     if cur_search_text in getattr(getattr(d, field), linked_field).lower():
-            #         at_least_one = True
-            #         snippets[field] = re.sub(
-            #             pattern, repl, getattr(d, field))
+            fields_tag_str = (
+                ('key_topics', 'name'),
+                ('events', 'name'),
+            )
+            for field, linked_field in fields_tag_str:
+                tags = getattr(getattr(d, field), linked_field)
+                value = getattr(getattr(d, field), linked_field)
+                if type(value) == str:
+                    if cur_search_text in value.lower():
+                        at_least_one = True
+                        snippets[field] = re.sub(
+                            pattern, repl, getattr(d, field))
+                else:
+                    matches = list()
+                    for v in value:
+                        if cur_search_text in v.lower():
+                            at_least_one = True
+                            matches.append(
+                                {
+                                    'name': re.sub(
+                                        pattern, repl, v),
+                                    'id': v
+                                }
+                            )
+                    if len(matches) > 0:
+                        snippets[field] = matches
 
             # linked fields
             linked_fields_str = (
