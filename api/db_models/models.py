@@ -22,6 +22,7 @@ class Item(db.Entity):
     key_topics = Set('Tag')
     title = Optional(str, sql_default="'Untitled'", nullable=True)
     description = Optional(str)
+    sub_organizations = Optional(str)
     link = Optional(str)
     internal_research_note = Optional(str)
     ra_coder_initials = Optional(str)
@@ -50,7 +51,6 @@ class Author(db.Entity):
     id = PrimaryKey(int, auto=True)
     type_of_authoring_organization = Optional(str)
     authoring_organization = Required(str)
-    authoring_organization_sub_organization = Optional(str)  # TODO
     international_national = Optional(str)
     if_national_country_of_authoring_org = Optional(str, nullable=True)
     if_national_iso2_of_authoring_org = Optional(str, nullable=True)
