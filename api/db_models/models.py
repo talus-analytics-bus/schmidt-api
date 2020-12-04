@@ -50,7 +50,6 @@ class Author(db.Entity):
     id = PrimaryKey(int, auto=True)
     type_of_authoring_organization = Optional(str)
     authoring_organization = Required(str)
-    authoring_organization_sub_organization = Optional(str)  # TODO
     international_national = Optional(str)
     if_national_country_of_authoring_org = Optional(str, nullable=True)
     if_national_iso2_of_authoring_org = Optional(str, nullable=True)
