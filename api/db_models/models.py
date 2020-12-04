@@ -22,6 +22,7 @@ class Item(db.Entity):
     key_topics = Set('Tag')
     title = Optional(str, sql_default="'Untitled'", nullable=True)
     description = Optional(str)
+    sub_organizations = Optional(str)
     link = Optional(str)
     internal_research_note = Optional(str)
     ra_coder_initials = Optional(str)

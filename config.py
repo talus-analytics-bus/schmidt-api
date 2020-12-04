@@ -128,13 +128,15 @@ class Config:
             for d in cfg['DEFAULT']:
                 self.db[d] = cfg['DEFAULT'].get(d)
         else:
-            print("os.environ.get('DBNAME')")
-            print(os.environ.get('DBNAME'))
             secret = json.loads(get_secret())
             self.db['username'] = secret['username']
             self.db['host'] = secret['host']
-            self.db['password'] = secret['password']
             self.db['database'] = os.environ.get('DBNAME')
+            self.db['password'] = secret['password']
+
+        print('\nCreating database connection with the following params:')
+        print(self.db)
+        print('')
 
         # Define database engine based on db connection parameters.
         self.engine = create_engine(f"postgresql+psycopg2://{self.db['username']}:{self.db['password']}@{self.db['host']}:5432/{self.db['database']}",
