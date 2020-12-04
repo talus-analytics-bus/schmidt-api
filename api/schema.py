@@ -786,20 +786,16 @@ def get_items_if_other_filters_in_category_not_applied(
 
     """
 
-    if filters is None or len(filters.keys()) == 0:
-        return items
-    else:
+    filters_not_for_field = {
+        k: v for (k, v) in filters.items() if k != filter_field
+    }
 
-        filters_not_for_field = {
-            k: v for (k, v) in filters.items() if k != filter_field
-        }
-
-        filtered_items = apply_filters_to_items(
-            items=items,
-            filters=filters_not_for_field,
-            search_text=search_text,
-        )
-        return filtered_items
+    filtered_items = apply_filters_to_items(
+        items=items,
+        filters=filters_not_for_field,
+        search_text=search_text,
+    )
+    return filtered_items
 
 
 @db_session
@@ -919,7 +915,8 @@ def get_metadata_value_counts(
     # iterate on each filter category and define the number of unique items
     # in it overall and by value, except those in `exclude`
     for d in to_check:
-
+        print('search_text')
+        print(search_text)
         # init key params
         field = d['field']
         filter_field = d.get('filter_field', field)

@@ -276,10 +276,14 @@ class Filter_Counts(Resource):
     @db_session
     @format_response
     def get(self):
+
+        # get search text if any
+        search_text = request.args.get('search_text', None)
+
         # get ids of items from URL params
         exclude = request.args.getlist('exclude')
         return schema.get_metadata_value_counts(
-            items=None, exclude=exclude, filters={}
+            items=None, exclude=exclude, filters={}, search_text=search_text
         )
 
 
