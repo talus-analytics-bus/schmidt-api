@@ -127,11 +127,24 @@ def get_str_from_datetime(dt, t_res, strf_str):
     else:
         return dt_utc.strftime(strf_str)
 
-# Returns true if database entity class instance's attribute contains a value
-# in the filter set, false otherwise.
-
 
 def passes_filters(instance, filters):
+    """Returns true if database entity class instance's attribute contains a
+    value in the filter set, false otherwise.
+
+    Parameters
+    ----------
+    instance : type
+        Description of parameter `instance`.
+    filters : type
+        Description of parameter `filters`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
     instancePasses = True
     for filterSetName in filters:
 
@@ -153,16 +166,15 @@ def passes_filters(instance, filters):
             instancePasses = False
     return instancePasses
 
-# A decorator to format API responses (Query objects) as
-# { data: [{...}, {...}] }
 
-
-# does this dict represent an error?
 def is_error(d):
+    # does this dict represent an error?
     return d.get('is_error', False)
 
 
 def format_response(func):
+    # A decorator to format API responses (Query objects) as
+    # { data: [{...}, {...}] }
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Load unformatted data from prior function return statement.
