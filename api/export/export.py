@@ -188,11 +188,11 @@ class SheetSettings():
                     self.formats.colname(bg_color)
                 )
                 if self.type == 'legend' and colname in (
-                        'Sub-organization',
-                        'Authoring organization has governance authority?'
-                    ):
+                    'Sub-organization',
+                    'Authoring organization has governance authority?'
+                ):
                     worksheet.set_column(icol, icol, 60)
-                elif colname == 'Description':
+                elif colname in ('Description', 'Definition'):
                     worksheet.set_column(icol, icol, 80)
                 else:
                     worksheet.set_column(icol, icol, 50)

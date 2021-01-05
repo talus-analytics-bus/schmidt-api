@@ -142,7 +142,7 @@ class SchmidtExportPlugin(ExcelExport):
 
             """
             if export_type == 'bookmarks':
-                return 'Bookmarked items'
+                return 'Bookmarked documents'
 
             # if selected items, show as descriptive a title as possible
             # without exceeding a reasonable number of characters
@@ -187,9 +187,9 @@ class SchmidtExportPlugin(ExcelExport):
                             suffix = ': ' + value
                 elif search_text_defined and not any_filter_defined:
                     suffix = f''': Text matching "{search_text}"'''
-                return 'Selected items' + suffix
+                return 'Selected documents' + suffix
             else:
-                return 'All items in library'
+                return 'All documents in library'
 
         export_type = get_export_type(filters, search_text)
         data_sheet_title = get_data_sheet_title(export_type)
@@ -197,15 +197,22 @@ class SchmidtExportPlugin(ExcelExport):
         self.sheet_settings = []
         tabs = (
             {
-                's': 'Item',
+                's': 'Document',
                 'p': data_sheet_title,
-                'intro_text': f'''The table below lists metadata for {export_type} items from the Health Security Net\'s Global Health Security Library.''',
+                'intro_text': f'''The table below lists data for {export_type} documents from the Health Security Net\'s Global Health Security Library.''',
                 'data': self.default_data_getter,
                 'legend': self.default_data_getter_legend
             },
+            {
+                's': 'Glossary',
+                'p': 'Glossary',
+                'intro_text': f'''The table below lists definitions of terms used in the Health Security Net\'s Global Health Security Library.''',
+                'data': self.glossary_data_getter,
+                'legend': None
+            }
         )
         for tab in tabs:
-            self.sheet_settings += [
+            sheet_settings = [
                 SheetSettings(
                     name=tab['p'],
                     type='data',
@@ -222,28 +229,33 @@ class SchmidtExportPlugin(ExcelExport):
                     },
                     data_getter=tab['data'],
                     class_name=tab['s']
-                ),
-                SheetSettings(
-                    name='Legend - ' + tab['p'],
-                    type='legend',
-                    intro_text=f'''A description for each data column in the "{tab['p']}" tab and its possible values is provided below.''',
-                    init_irow={
-                        'logo': 0,
-                        'title': 1,
-                        'subtitle': 2,
-                        'intro_text': 3,
-                        'gap': 4,
-                        'colgroups': 5,
-                        'colnames': 6,
-                        'data': 7
-                    },
-                    data_getter=tab['legend'],
-                    class_name=tab['s']
                 )
             ]
 
+            if tab['legend'] is not None:
+                sheet_settings.append(
+                    SheetSettings(
                         name='Column definitions',
                         # name='Legend - ' + tab['p'],
+                        type='legend',
+                        intro_text=f'''A description for each data column in the "{tab['p']}" tab and its possible values is provided below.''',
+                        init_irow={
+                            'logo': 0,
+                            'title': 1,
+                            'subtitle': 2,
+                            'intro_text': 3,
+                            'gap': 4,
+                            'colgroups': 5,
+                            'colnames': 6,
+                            'data': 7
+                        },
+                        data_getter=tab['legend'],
+                        class_name=tab['s']
+                    )
+                )
+
+            self.sheet_settings += sheet_settings
+
     def add_content(self, workbook):
         """Add content, e.g., the tab containing the exported data.
 
@@ -307,6 +319,40 @@ class SchmidtExportPlugin(ExcelExport):
             worksheet.set_column(0, 0, 25)
 
         return self
+
+    def glossary_data_getter(self, class_name: str = 'Glossary', filters: dict = None):
+
+        # get glossary term definitions
+        data = schema.get_glossary()
+
+        # init
+        rows = list()
+
+        def iterable(obj):
+            try:
+                iter(obj)
+            except Exception:
+                return False
+            else:
+                return True
+
+        # for each row
+        for d in data:
+
+            # create dict to store row information
+            row = {
+                "Term definitions": {
+                    "Column name": d.colname,
+                    "Term": d.term,
+                    "Definition": d.definition
+                }
+            }
+
+            # append row data to overall row list
+            rows.append(row)
+
+        # return list of rows
+        return rows
 
     def default_data_getter(self, class_name: str = 'Policy', filters: dict = None):
         # get items, applying filters (usually a list of IDs of items to return)

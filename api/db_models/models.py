@@ -129,6 +129,17 @@ class Metadata(db.Entity):
     PrimaryKey(entity_name, linked_entity_name, field)
 
 
+class Glossary(db.Entity):
+    """Define definitions of terms for single- and multi-selects."""
+    _table_ = "glossary"
+
+    # Attributes
+    id = PrimaryKey(int, auto=True)
+    colname = Required(str)
+    term = Required(str)
+    definition = Required(str)
+
+
 class Tag(db.Entity):
     """Tags for single and multiselects."""
     _table_ = "tag"

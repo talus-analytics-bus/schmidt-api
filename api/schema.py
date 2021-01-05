@@ -1251,3 +1251,17 @@ def get_all_items():
         db.Item.events,
         db.Item.items
     )
+
+
+@db_session
+def get_glossary():
+    """Get all glossary records.
+
+    Returns
+    -------
+    list
+        List of PonyORM records for glossary.
+
+    """
+    return db.Glossary.select() \
+        .order_by(db.Glossary.colname, db.Glossary.term)[:][:]
