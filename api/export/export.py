@@ -172,7 +172,7 @@ class SheetSettings():
         init_icol = self.get_init_icol()
         irow = init_irow
         icol = init_icol
-        bg_colors = ['#386DA5', '#1F416D']
+        bg_colors = ['#E9EFF1', '#cddbe1']
         bg_color_idx = 0
         row = data[0]
         worksheet.set_row(irow, 40)
@@ -253,7 +253,7 @@ class SheetSettings():
         init_irow = self.init_irow['colnames']
         worksheet.set_column(0, 0, 50)
         rows = [
-            (init_irow, 'Column name', self.formats.colname('#1F416D')),
+            (init_irow, 'Column name', self.formats.colname('#cddbe1')),
             (init_irow + 1, 'Definition', self.formats.legend_cell()),
             (init_irow + 2, 'Allowed values', self.formats.legend_cell()),
         ]

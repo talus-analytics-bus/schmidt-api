@@ -80,7 +80,8 @@ class WorkbookFormats():
         self.legend_cell_format = workbook.add_format(
             {
                 'font_size': 14,
-                'bg_color': '#DEDEDE',
+                'bg_color': '#ffffff',
+                # 'bg_color': '#DEDEDE',
                 'font_name': 'Calibri (Body)',
                 'valign': 'vcenter',
                 'bold': True,
@@ -155,8 +156,10 @@ class WorkbookFormats():
         return self.workbook.add_format(
             {
                 # Specific header styling:
-                'bg_color': '#DEDEDE',
-                'font_color': '#000000',
+                'bg_color': '#be0e23',
+                # 'bg_color': '#DEDEDE',
+                'font_color': '#ffffff',
+                # 'font_color': '#000000',
 
                 # All header styling:
                 'bold': True,
@@ -187,7 +190,8 @@ class WorkbookFormats():
             {
                 # Specific header styling:
                 'bg_color': color_hex,
-                'font_color': '#ffffff',
+                'font_color': '#333333',
+                # 'font_color': '#ffffff',
 
                 # All header styling:
                 'bold': True,
