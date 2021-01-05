@@ -1046,7 +1046,7 @@ def export(filters: dict = None, search_text: str = None):
 
     # return the file
     today = date.today()
-    attachment_filename = f'''Health Security Net - Data Export.xlsx'''
+    attachment_filename = f'''Health Security Net - Data Download.xlsx'''
 
     return {
         'content': content,
