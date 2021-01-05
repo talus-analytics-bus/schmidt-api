@@ -516,25 +516,25 @@ class GenericExcelExport(ExcelExport):
             {
                 'Basic information':
                 {
-                    'Name': 'Mike',
-                    'E-mail': 'mvanmaele@talusanalytics.com',
+                    'Name': 'Test',
+                    'E-mail': 'Test',
                 },
                 'Additional details':
                 {
-                    'Hobbies': 'Opera; Triathlon; Yoga',
-                    'Favorite color': 'Blue',
+                    'Hobbies': 'Test',
+                    'Favorite color': 'Test',
                 }
             },
             {
                 'Basic information':
                 {
-                    'Name': 'Mike2',
-                    'E-mail': 'mvanmaele@talusanalytics.com2',
+                    'Name': 'Test',
+                    'E-mail': 'Test',
                 },
                 'Additional details':
                 {
-                    'Hobbies': 'Opera; Triathlon; Yoga2',
-                    'Favorite color': 'Blue2',
+                    'Hobbies': 'Test',
+                    'Favorite color': 'Test',
                 }
             },
         ]
@@ -549,25 +549,25 @@ class GenericExcelExport(ExcelExport):
             {
                 'Basic information':
                 {
-                    'Name': 'The name',
-                    'E-mail': 'The e-mail',
+                    'Name': 'Test',
+                    'E-mail': 'Test',
                 },
                 'Additional details':
                 {
-                    'Hobbies': 'Any semicolon-delimited list of hobbies',
-                    'Favorite color': 'Any color',
+                    'Hobbies': 'Test',
+                    'Favorite color': 'Test',
                 }
             },
             {
                 'Basic information':
                 {
-                    'Name': 'Any text',
-                    'E-mail': 'Any email',
+                    'Name': 'Test',
+                    'E-mail': 'Test',
                 },
                 'Additional details':
                 {
-                    'Hobbies': 'Any semicolon-delimited list of text',
-                    'Favorite color': 'Any text',
+                    'Hobbies': 'Test',
+                    'Favorite color': 'Test',
                 }
             },
         ]
