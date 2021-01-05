@@ -188,6 +188,7 @@ class SheetSettings():
                     self.formats.colname(bg_color)
                 )
                 if self.type == 'legend' and colname in (
+                    'Funders',
                     'Sub-organization',
                     'Authoring organization has governance authority?'
                 ):
