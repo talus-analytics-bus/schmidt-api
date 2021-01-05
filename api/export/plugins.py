@@ -242,6 +242,8 @@ class SchmidtExportPlugin(ExcelExport):
                 )
             ]
 
+                        name='Column definitions',
+                        # name='Legend - ' + tab['p'],
     def add_content(self, workbook):
         """Add content, e.g., the tab containing the exported data.
 
