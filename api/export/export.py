@@ -326,7 +326,7 @@ class SheetSettings():
             {
                 'object_position': 3,
                 'y_scale': 1.1,
-                'x_scale': logo_stretch_correction,
+                # 'x_scale': logo_stretch_correction,
                 'x_offset': logo_offset['x_offset'],
                 'y_offset': logo_offset['y_offset'],
             }
