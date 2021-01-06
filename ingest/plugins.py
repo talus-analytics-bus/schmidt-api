@@ -18,8 +18,8 @@ import pprint
 
 # local modules
 from .sources import AirtableSource
-from .util import upsert, download_file, bcolors, nyt_caseload_csv_to_dict, \
-    jhu_caseload_csv_to_dict, find_all, iterable, get_s3_bucket_keys, \
+from .util import upsert, download_file, bcolors, \
+    find_all, iterable, get_s3_bucket_keys, \
     S3_BUCKET_NAME
 import pandas as pd
 
