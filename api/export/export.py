@@ -195,11 +195,11 @@ class SheetSettings():
                     worksheet.set_column(icol, icol, 60)
                 elif self.type == 'legend' and colname == 'Definition':
                     worksheet.set_column(icol, icol, 80)
-                elif self.type == 'legend' and colname == 'Title':
+                elif self.type != 'legend' and colname == 'Title':
                     worksheet.set_column(icol, icol, 25)
-                elif self.type == 'legend' and colname == 'Description':
+                elif self.type != 'legend' and colname == 'Description':
                     worksheet.set_column(icol, icol, 95)
-                elif self.type == 'legend' and colname in ('Type of record', 'Date published'):
+                elif self.type != 'legend' and colname in ('Type of record', 'Date published'):
                     worksheet.set_column(icol, icol, 25)
                 else:
                     worksheet.set_column(icol, icol, 50)
