@@ -193,7 +193,7 @@ class SheetSettings():
                     'Authoring organization has governance authority?'
                 ):
                     worksheet.set_column(icol, icol, 60)
-                elif colname in ('Description', 'Definition'):
+                elif colname in ('Description', 'Definition', 'Title'):
                     worksheet.set_column(icol, icol, 80)
                 else:
                     worksheet.set_column(icol, icol, 50)
