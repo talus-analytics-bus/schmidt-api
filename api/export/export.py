@@ -193,8 +193,14 @@ class SheetSettings():
                     'Authoring organization has governance authority?'
                 ):
                     worksheet.set_column(icol, icol, 60)
-                elif colname in ('Description', 'Definition', 'Title'):
+                elif colname == 'Definition':
                     worksheet.set_column(icol, icol, 80)
+                elif colname == 'Title':
+                    worksheet.set_column(icol, icol, 25)
+                elif colname == 'Description':
+                    worksheet.set_column(icol, icol, 95)
+                elif colname in ('Type of record', 'Date published'):
+                    worksheet.set_column(icol, icol, 25)
                 else:
                     worksheet.set_column(icol, icol, 50)
 
@@ -261,7 +267,7 @@ class SheetSettings():
             worksheet.write(irow, 0, text, cell_format)
         worksheet.set_row(init_irow + 2, 360)
 
-    def write_header(self, worksheet, logo_fn, logo_offset, title, intro_text):
+    def write_header(self, worksheet, logo_fn, logo_offset, logo_stretch_correction, title, intro_text):
         """Write the sheet header, including title, subtitle, logo, etc.
 
         Parameters
@@ -284,6 +290,7 @@ class SheetSettings():
         self.write_logo(worksheet,
                         logo_fn,
                         logo_offset,
+                        1,
                         115)
         self.write_title(worksheet, title)
 
@@ -292,7 +299,10 @@ class SheetSettings():
         self.write_intro_text(
             worksheet, intro_text)
 
-    def write_logo(self, worksheet, logo_fn, logo_offset, row_height):
+    def write_logo(
+        self, worksheet, logo_fn, logo_offset,
+        logo_stretch_correction, row_height
+    ):
         """Add the logo at the specified filename path to the upper-left corner.
 
         Parameters

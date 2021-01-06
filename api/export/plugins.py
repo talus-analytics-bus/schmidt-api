@@ -289,7 +289,6 @@ class SchmidtExportPlugin(ExcelExport):
 
             # define formats
             settings.formats = WorkbookFormats(workbook)
-
             settings.write_header(
                 worksheet,
                 logo_fn='./api/assets/images/logo.png',
@@ -297,8 +296,10 @@ class SchmidtExportPlugin(ExcelExport):
                     'x_offset': 5,
                     'y_offset': 25,
                 },
+                logo_stretch_correction=1,
                 title=settings.name,
-                intro_text=settings.intro_text)
+                intro_text=settings.intro_text
+            )
 
             data = settings.data
             settings.write_colgroups(worksheet, data)
@@ -308,6 +309,7 @@ class SchmidtExportPlugin(ExcelExport):
             if settings.type == 'legend':
                 settings.write_legend_labels(worksheet)
                 worksheet.set_row(settings.init_irow['data'], 220)
+                worksheet.set_column(0, 0, 25)
             elif settings.type == 'data':
                 worksheet.freeze_panes(settings.init_irow['data'], 0)
                 worksheet.autofilter(
@@ -316,7 +318,6 @@ class SchmidtExportPlugin(ExcelExport):
                     settings.init_irow['colnames'],
                     settings.num_cols - 1
                 )
-            # worksheet.set_column(0, 0, 25)
 
         return self
 
