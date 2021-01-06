@@ -316,7 +316,7 @@ class SchmidtExportPlugin(ExcelExport):
                     settings.init_irow['colnames'],
                     settings.num_cols - 1
                 )
-            worksheet.set_column(0, 0, 25)
+            # worksheet.set_column(0, 0, 25)
 
         return self
 
