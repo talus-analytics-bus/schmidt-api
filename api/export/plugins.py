@@ -296,7 +296,8 @@ class SchmidtExportPlugin(ExcelExport):
                     'x_offset': 5,
                     'y_offset': 25,
                 },
-                logo_stretch_correction=1,
+                # logo_stretch_correction=1,
+                logo_stretch_correction=1/1.13,
                 title=settings.name,
                 intro_text=settings.intro_text
             )
@@ -309,7 +310,7 @@ class SchmidtExportPlugin(ExcelExport):
             if settings.type == 'legend':
                 settings.write_legend_labels(worksheet)
                 worksheet.set_row(settings.init_irow['data'], 220)
-                worksheet.set_column(0, 0, 25)
+                worksheet.set_column(0, 0, 50)
             elif settings.type == 'data':
                 worksheet.freeze_panes(settings.init_irow['data'], 0)
                 worksheet.autofilter(
