@@ -11,15 +11,15 @@ from collections import defaultdict
 # 3rd party modules
 import boto3
 import pdfplumber
-from progress.bar import Bar
+from alive_progress import alive_bar
 from pony.orm import db_session, commit, get, select, delete, StrArray
 from pony.orm.core import CacheIndexError, ObjectNotFound
 import pprint
 
 # local modules
 from .sources import AirtableSource
-from .util import upsert, download_file, bcolors, nyt_caseload_csv_to_dict, \
-    jhu_caseload_csv_to_dict, find_all, iterable, get_s3_bucket_keys, \
+from .util import upsert, download_file, bcolors, \
+    find_all, iterable, get_s3_bucket_keys, \
     S3_BUCKET_NAME
 import pandas as pd
 
@@ -336,45 +336,44 @@ class SchmidtPlugin(IngestPlugin):
         all_items = select(i for i in db.Item)
 
         # add plain fields on the Item entity, like name and desc
-        bar = Bar('Updating search text', max=all_items.count())
-        for i in all_items:
-            bar.next()
-            search_text = ''
-            file_search_text = ''
-            for field in fields_str:
-                value = getattr(i, field)
-                if type(value) == list:
-                    value = " ".join(value)
-                search_text += value + ' '
-            for field in fields_tag:
-                tag_names = select(
-                    tag.name
-                    for tag in getattr(i, field)
-                )[:][:]
-                search_text += " - ".join(tag_names) + ' '
+        with alive_bar(all_items.count(), title="Updating search text") as bar:
+            for i in all_items:
+                bar()
+                search_text = ''
+                file_search_text = ''
+                for field in fields_str:
+                    value = getattr(i, field)
+                    if type(value) == list:
+                        value = " ".join(value)
+                    search_text += value + ' '
+                for field in fields_tag:
+                    tag_names = select(
+                        tag.name
+                        for tag in getattr(i, field)
+                    )[:][:]
+                    search_text += " - ".join(tag_names) + ' '
 
-            # add linked fields from related entities like authors
-            for field in linked_fields_str:
-                arr = field.split('.')
-                entity_name = arr[0]
-                linked_field = arr[1]
-                linked_values = select(
-                    getattr(linked_entity, linked_field)
-                    for linked_entity in getattr(i, entity_name)
-                    if getattr(linked_entity, linked_field) is not None
-                )[:][:]
-                str_to_concat = " - ".join(linked_values) + ' '
-                if linked_field == 'scraped_text':
-                    str_to_concat = str_to_concat[0:100000]
-                    file_search_text += str_to_concat
-                else:
-                    search_text += str_to_concat
+                # add linked fields from related entities like authors
+                for field in linked_fields_str:
+                    arr = field.split('.')
+                    entity_name = arr[0]
+                    linked_field = arr[1]
+                    linked_values = select(
+                        getattr(linked_entity, linked_field)
+                        for linked_entity in getattr(i, entity_name)
+                        if getattr(linked_entity, linked_field) is not None
+                    )[:][:]
+                    str_to_concat = " - ".join(linked_values) + ' '
+                    if linked_field == 'scraped_text':
+                        str_to_concat = str_to_concat[0:100000]
+                        file_search_text += str_to_concat
+                    else:
+                        search_text += str_to_concat
 
-            # update search text
-            i.search_text = search_text.lower()
-            i.file_search_text = file_search_text.lower()
-            commit()
-        bar.finish()
+                # update search text
+                i.search_text = search_text.lower()
+                i.file_search_text = file_search_text.lower()
+                commit()
         print('Complete.')
 
     @db_session
@@ -628,136 +627,133 @@ class SchmidtPlugin(IngestPlugin):
 
         # define progress bar for item update cycle
         print('')
-        bar = Bar('Updating files', max=n_item_dicts)
+        with alive_bar(n_item_dicts, title="Updating files") as bar:
+            # for each item
+            for d in item_dicts:
+                bar()
+                cur_item_dict = cur_item_dict + 1
 
-        # for each item
-        for d in item_dicts:
-            cur_item_dict = cur_item_dict + 1
-
-            bar.next()
-
-            file_defined = d['PDF Attachments'] != ''
-            item = db.Item[int(d['ID (automatically assigned)'])]
-            item_defined = item is not None
-            if not file_defined or not item_defined or \
-                    item.exclude_pdf_from_site:
-                continue
-            else:
-                file_list = d['PDF Attachments']
-                if not iterable(file_list):
-                    file_list = list(set([file_list]))
-                all_upserted = list()
-                for file in file_list:
-                    upsert_get = {
-                        's3_filename': file['id'],
-                    }
-                    has_thumbnails = 'thumbnails' in file
-                    source_thumbnail_permalink = \
-                        file['thumbnails']['large']['url'] if has_thumbnails \
-                        else None
-                    upsert_set = {
-                        'source_permalink': file['url'],
-                        'filename': file['filename'],
-                        's3_permalink': None,
-                        'exclude_from_site': item.exclude_pdf_from_site,
-                        'mime_type': file['type'],
-                        'source_thumbnail_permalink': source_thumbnail_permalink,
-                        's3_thumbnail_permalink': None,
-                        'num_bytes': file['size'],
-                    }
-
-                    files_to_check = [
-                        {
-                            'file_key': file['id'],
-                            'file_url': file['url'],
-                            'field': 's3_permalink',
-                            'scrape': True,
-                        },
-                        {
-                            'file_key': file['id'] + '_thumb',
-                            'file_url': source_thumbnail_permalink,
-                            'field': 's3_thumbnail_permalink',
-                            'scrape': False,
+                file_defined = d['PDF Attachments'] != ''
+                item = db.Item[int(d['ID (automatically assigned)'])]
+                item_defined = item is not None
+                if not file_defined or not item_defined or \
+                        item.exclude_pdf_from_site:
+                    continue
+                else:
+                    file_list = d['PDF Attachments']
+                    if not iterable(file_list):
+                        file_list = list(set([file_list]))
+                    all_upserted = list()
+                    for file in file_list:
+                        upsert_get = {
+                            's3_filename': file['id'],
                         }
-                    ]
+                        has_thumbnails = 'thumbnails' in file
+                        source_thumbnail_permalink = \
+                            file['thumbnails']['large']['url'] if has_thumbnails \
+                            else None
+                        upsert_set = {
+                            'source_permalink': file['url'],
+                            'filename': file['filename'],
+                            's3_permalink': None,
+                            'exclude_from_site': item.exclude_pdf_from_site,
+                            'mime_type': file['type'],
+                            'source_thumbnail_permalink': source_thumbnail_permalink,
+                            's3_thumbnail_permalink': None,
+                            'num_bytes': file['size'],
+                        }
 
-                    for file_to_check in files_to_check:
-                        file_key = file_to_check['file_key']
-                        file_url = file_to_check['file_url']
-                        if file_url is None:
-                            continue
-                        else:
-                            scrape = file_to_check['scrape']
-                            file_already_in_s3 = file_key in self.s3_bucket_keys
+                        files_to_check = [
+                            {
+                                'file_key': file['id'],
+                                'file_url': file['url'],
+                                'field': 's3_permalink',
+                                'scrape': True,
+                            },
+                            {
+                                'file_key': file['id'] + '_thumb',
+                                'file_url': source_thumbnail_permalink,
+                                'field': 's3_thumbnail_permalink',
+                                'scrape': False,
+                            }
+                        ]
 
-                            if not file_already_in_s3:
-                                # add file to S3 if not already there
-                                file = download_file(
-                                    file_url,
-                                    file_key,
-                                    None,
-                                    as_object=True
-                                )
+                        for file_to_check in files_to_check:
+                            file_key = file_to_check['file_key']
+                            file_url = file_to_check['file_url']
+                            if file_url is None:
+                                continue
+                            else:
+                                scrape = file_to_check['scrape']
+                                file_already_in_s3 = file_key in self.s3_bucket_keys
 
-                                if file is not None:
+                                if not file_already_in_s3:
+                                    # add file to S3 if not already there
+                                    file = download_file(
+                                        file_url,
+                                        file_key,
+                                        None,
+                                        as_object=True
+                                    )
 
-                                    # scrape PDF text unless file is not a PDF or
-                                    # unless it is not flagged as `scrape`
-                                    if scrape and scrape_text:
-                                        try:
-                                            pdf = pdfplumber.open(
-                                                BytesIO(file))
+                                    if file is not None:
 
-                                            # # for debug: get first page only
-                                            # # TODO revert
-                                            # first_page = pdf.pages[0]
-                                            # scraped_text = first_page.extract_text()
+                                        # scrape PDF text unless file is not a PDF or
+                                        # unless it is not flagged as `scrape`
+                                        if scrape and scrape_text:
+                                            try:
+                                                pdf = pdfplumber.open(
+                                                    BytesIO(file))
 
-                                            scraped_text = ''
-                                            for curpage in pdf.pages:
-                                                page_scraped_text = curpage.extract_text()
-                                                if page_scraped_text is not None:
-                                                    scraped_text += page_scraped_text
-                                            upsert_set['scraped_text'] = scraped_text.replace(
-                                                '\x00', '')
-                                        except Exception as e:
-                                            pass
-                                            # print(
-                                            #     'File does not appear to be PDF, skipping scraping: ' + file['filename'])
+                                                # # for debug: get first page only
+                                                # # TODO revert
+                                                # first_page = pdf.pages[0]
+                                                # scraped_text = first_page.extract_text()
 
-                                    if not file_already_in_s3:
-                                        # add file to s3
-                                        response = s3.put_object(
-                                            Body=file,
-                                            Bucket=S3_BUCKET_NAME,
-                                            Key=file_key,
-                                        )
+                                                scraped_text = ''
+                                                for curpage in pdf.pages:
+                                                    page_scraped_text = curpage.extract_text()
+                                                    if page_scraped_text is not None:
+                                                        scraped_text += page_scraped_text
+                                                upsert_set['scraped_text'] = scraped_text.replace(
+                                                    '\x00', '')
+                                            except Exception as e:
+                                                pass
+                                                # print(
+                                                #     'File does not appear to be PDF, skipping scraping: ' + file['filename'])
 
-                                        # set to public
-                                        response2 = s3.put_object_acl(
-                                            ACL='public-read',
-                                            Bucket=S3_BUCKET_NAME,
-                                            Key=file_key,
-                                        )
+                                        if not file_already_in_s3:
+                                            # add file to s3
+                                            response = s3.put_object(
+                                                Body=file,
+                                                Bucket=S3_BUCKET_NAME,
+                                                Key=file_key,
+                                            )
 
-                                        field = file_to_check['field']
-                                        upsert_set[field] = 'https://schmidt-storage.s3-us-west-1.amazonaws.com/' + file_key
-                                        # print('Added file to s3: ' + file_key)
+                                            # set to public
+                                            response2 = s3.put_object_acl(
+                                                ACL='public-read',
+                                                Bucket=S3_BUCKET_NAME,
+                                                Key=file_key,
+                                            )
 
-                    # upsert files
-                    action, upserted = upsert(
-                        db.File,
-                        get=upsert_get,
-                        set=upsert_set
-                    )
-                    commit()
+                                            field = file_to_check['field']
+                                            upsert_set[field] = 'https://schmidt-storage.s3-us-west-1.amazonaws.com/' + file_key
+                                            # print('Added file to s3: ' + file_key)
 
-                    # add to list of files for item
-                    all_upserted.append(upserted)
+                        # upsert files
+                        action, upserted = upsert(
+                            db.File,
+                            get=upsert_get,
+                            set=upsert_set
+                        )
+                        commit()
 
-                # link item to files
-                item.files = all_upserted
-        bar.finish()
+                        # add to list of files for item
+                        all_upserted.append(upserted)
+
+                    # link item to files
+                    item.files = all_upserted
 
         # assign s3 permalinks
         api_url = 'https://schmidt-api.talusanalytics.com/get/file/'
@@ -776,21 +772,20 @@ class SchmidtPlugin(IngestPlugin):
         s3_resource = boto3.resource('s3')
 
         n_deleted = 0
-        bar = Bar('Deleting files that have been marked "exclude" since last update',
-                  max=n_files_to_delete)
-        for file in files_to_delete:
-            bar.next()
-            # delete s3 file and thumb, if it exists
-            s3_filename = file.s3_filename
-            s3_resource.Object(S3_BUCKET_NAME, s3_filename).delete()
-            if file.s3_thumbnail_permalink is not None:
-                s3_resource.Object(
-                    S3_BUCKET_NAME, s3_filename + '_thumb'
-                ).delete()
-            file.delete()
-            commit()
-            n_deleted += 1
-        bar.finish()
+        with alive_bar(n_files_to_delete, title='Deleting files that have been marked "exclude" since last update') as bar:
+            for file in files_to_delete:
+                bar()
+                # delete s3 file and thumb, if it exists
+                s3_filename = file.s3_filename
+                s3_resource.Object(S3_BUCKET_NAME, s3_filename).delete()
+                if file.s3_thumbnail_permalink is not None:
+                    s3_resource.Object(
+                        S3_BUCKET_NAME, s3_filename + '_thumb'
+                    ).delete()
+                file.delete()
+                commit()
+                n_deleted += 1
+
         print('Deleted ' + str(n_deleted) + ' files (plus thumbnails) from database and S3.')
         print('Files updated.')
         return self
@@ -974,6 +969,55 @@ class SchmidtPlugin(IngestPlugin):
 
         # delete all records in table but not in ingest dataset
         n_deleted = db.Metadata.delete_2(upserted)
+        commit()
+        print('Inserted: ' + str(n_inserted))
+        print('Updated: ' + str(n_updated))
+        print('Deleted: ' + str(n_deleted))
+
+    @db_session
+    def update_glossary(self, db, delete_old):
+        """Create glossary instances, deleting existing.
+
+        """
+        print('\n\n[2b] Ingesting glossary from Airtable...')
+        self.glossary_dicts = self.client \
+            .worksheet(name='Glossary (work in progress)') \
+            .as_dataframe() \
+            .to_dict(orient='records')
+
+        if delete_old:
+            print('Deleting existing glossary records...')
+            orig_records = db.Glossary.select()
+            n_deleted = orig_records.count()
+            orig_records.delete()
+            commit()
+            print('Deleted.')
+
+        # get glossary terms from Airtable
+
+        upserted = set()
+        n_inserted = 0
+        n_updated = 0
+
+        with alive_bar(len(self.glossary_dicts), title="Ingesting glossary records") as bar:
+            for d in self.glossary_dicts:
+                bar()
+                new_record = dict(
+                    colname=d.get('Category'),
+                    term=d.get('Name'),
+                    definition=d.get('Definition (in progress)'),
+                )
+                action, instance = upsert(
+                    db.Glossary,
+                    new_record,
+                    dict(),
+                )
+
+                if action == 'update':
+                    n_updated += 1
+                elif action == 'insert':
+                    n_inserted += 1
+
         commit()
         print('Inserted: ' + str(n_inserted))
         print('Updated: ' + str(n_updated))

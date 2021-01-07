@@ -34,6 +34,8 @@ only = {
         'files',
         'key_topics',
         'authoring_organization_has_governance_authority',
+        'link',
+        'exclude_pdf_from_site'
     ],
     'File': [
         'id',

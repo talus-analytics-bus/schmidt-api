@@ -172,7 +172,7 @@ class SheetSettings():
         init_icol = self.get_init_icol()
         irow = init_irow
         icol = init_icol
-        bg_colors = ['#386DA5', '#1F416D']
+        bg_colors = ['#E9EFF1', '#cddbe1']
         bg_color_idx = 0
         row = data[0]
         worksheet.set_row(irow, 40)
@@ -188,12 +188,19 @@ class SheetSettings():
                     self.formats.colname(bg_color)
                 )
                 if self.type == 'legend' and colname in (
-                        'Sub-organization',
-                        'Authoring organization has governance authority?'
-                    ):
+                    'Funders',
+                    'Sub-organization',
+                    'Authoring organization has governance authority?'
+                ):
                     worksheet.set_column(icol, icol, 60)
-                elif colname == 'Description':
+                elif self.type == 'legend' and colname == 'Definition':
                     worksheet.set_column(icol, icol, 80)
+                elif self.type != 'legend' and colname == 'Title':
+                    worksheet.set_column(icol, icol, 25)
+                elif self.type != 'legend' and colname == 'Description':
+                    worksheet.set_column(icol, icol, 95)
+                elif self.type != 'legend' and colname in ('Type of record', 'Date published'):
+                    worksheet.set_column(icol, icol, 25)
                 else:
                     worksheet.set_column(icol, icol, 50)
 
@@ -250,9 +257,9 @@ class SheetSettings():
 
         """
         init_irow = self.init_irow['colnames']
-        worksheet.set_column(0, 0, 50)
+        # worksheet.set_column(0, 0, 50)
         rows = [
-            (init_irow, 'Column name', self.formats.colname('#1F416D')),
+            (init_irow, 'Column name', self.formats.colname('#cddbe1')),
             (init_irow + 1, 'Definition', self.formats.legend_cell()),
             (init_irow + 2, 'Allowed values', self.formats.legend_cell()),
         ]
@@ -260,7 +267,7 @@ class SheetSettings():
             worksheet.write(irow, 0, text, cell_format)
         worksheet.set_row(init_irow + 2, 360)
 
-    def write_header(self, worksheet, logo_fn, logo_offset, title, intro_text):
+    def write_header(self, worksheet, logo_fn, logo_offset, logo_stretch_correction, title, intro_text):
         """Write the sheet header, including title, subtitle, logo, etc.
 
         Parameters
@@ -283,6 +290,7 @@ class SheetSettings():
         self.write_logo(worksheet,
                         logo_fn,
                         logo_offset,
+                        logo_stretch_correction,
                         115)
         self.write_title(worksheet, title)
 
@@ -291,7 +299,10 @@ class SheetSettings():
         self.write_intro_text(
             worksheet, intro_text)
 
-    def write_logo(self, worksheet, logo_fn, logo_offset, row_height):
+    def write_logo(
+        self, worksheet, logo_fn, logo_offset,
+        logo_stretch_correction, row_height
+    ):
         """Add the logo at the specified filename path to the upper-left corner.
 
         Parameters
@@ -315,6 +326,7 @@ class SheetSettings():
             {
                 'object_position': 3,
                 'y_scale': 1.1,
+                # 'x_scale': logo_stretch_correction,
                 'x_offset': logo_offset['x_offset'],
                 'y_offset': logo_offset['y_offset'],
             }
@@ -515,25 +527,25 @@ class GenericExcelExport(ExcelExport):
             {
                 'Basic information':
                 {
-                    'Name': 'Mike',
-                    'E-mail': 'mvanmaele@talusanalytics.com',
+                    'Name': 'Test',
+                    'E-mail': 'Test',
                 },
                 'Additional details':
                 {
-                    'Hobbies': 'Opera; Triathlon; Yoga',
-                    'Favorite color': 'Blue',
+                    'Hobbies': 'Test',
+                    'Favorite color': 'Test',
                 }
             },
             {
                 'Basic information':
                 {
-                    'Name': 'Mike2',
-                    'E-mail': 'mvanmaele@talusanalytics.com2',
+                    'Name': 'Test',
+                    'E-mail': 'Test',
                 },
                 'Additional details':
                 {
-                    'Hobbies': 'Opera; Triathlon; Yoga2',
-                    'Favorite color': 'Blue2',
+                    'Hobbies': 'Test',
+                    'Favorite color': 'Test',
                 }
             },
         ]
@@ -548,25 +560,25 @@ class GenericExcelExport(ExcelExport):
             {
                 'Basic information':
                 {
-                    'Name': 'The name',
-                    'E-mail': 'The e-mail',
+                    'Name': 'Test',
+                    'E-mail': 'Test',
                 },
                 'Additional details':
                 {
-                    'Hobbies': 'Any semicolon-delimited list of hobbies',
-                    'Favorite color': 'Any color',
+                    'Hobbies': 'Test',
+                    'Favorite color': 'Test',
                 }
             },
             {
                 'Basic information':
                 {
-                    'Name': 'Any text',
-                    'E-mail': 'Any email',
+                    'Name': 'Test',
+                    'E-mail': 'Test',
                 },
                 'Additional details':
                 {
-                    'Hobbies': 'Any semicolon-delimited list of text',
-                    'Favorite color': 'Any text',
+                    'Hobbies': 'Test',
+                    'Favorite color': 'Test',
                 }
             },
         ]
