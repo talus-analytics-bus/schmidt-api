@@ -931,8 +931,6 @@ def get_metadata_value_counts(
     # iterate on each filter category and define the number of unique items
     # in it overall and by value, except those in `exclude`
     for d in to_check:
-        print('search_text')
-        print(search_text)
         # init key params
         field = d['field']
         filter_field = d.get('filter_field', field)
