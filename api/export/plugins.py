@@ -199,14 +199,14 @@ class SchmidtExportPlugin(ExcelExport):
             {
                 's': 'Document',
                 'p': data_sheet_title,
-                'intro_text': f'''The table below lists data for {export_type} documents from the Health Security Net\'s Global Health Security Library.''',
+                'intro_text': f'''The table below lists data for {export_type} documents from Health Security Net\'s Global Health Security Library.''',
                 'data': self.default_data_getter,
                 'legend': self.default_data_getter_legend
             },
             {
                 's': 'Glossary',
                 'p': 'Glossary',
-                'intro_text': f'''The table below lists definitions of terms used in the Health Security Net\'s Global Health Security Library.''',
+                'intro_text': f'''The table below lists definitions of terms used in Health Security Net\'s Global Health Security Library.''',
                 'data': self.glossary_data_getter,
                 'legend': None
             }
