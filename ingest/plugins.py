@@ -742,6 +742,7 @@ class SchmidtPlugin(IngestPlugin):
                                             # print('Added file to s3: ' + file_key)
 
                         # upsert files
+                        upsert_set['has_thumb'] = upsert_set['source_thumbnail_permalink'] is not None
                         action, upserted = upsert(
                             db.File,
                             get=upsert_get,

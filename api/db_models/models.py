@@ -101,6 +101,7 @@ class File(db.Entity):
     mime_type = Required(str)
     source_thumbnail_permalink = Optional(str, nullable=True)
     s3_thumbnail_permalink = Optional(str, nullable=True)
+    has_thumb = Required(bool)
     num_bytes = Optional(int)
     scraped_text = Optional(str, nullable=True)
     exclude_from_site = Required(bool, default=False)
