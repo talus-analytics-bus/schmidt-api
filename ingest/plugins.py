@@ -757,7 +757,7 @@ class SchmidtPlugin(IngestPlugin):
                     item.files = all_upserted
 
         # assign s3 permalinks
-        api_url = 'https://schmidt-api.talusanalytics.com/get/file/'
+        api_url = 'https://api.healthsecuritynet.org/get/file/'
         for file in select(i for i in db.File):
             file.s3_permalink = \
                 f'''{api_url}{file.filename.replace('?', '')}?id={file.id}'''
