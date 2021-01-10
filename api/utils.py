@@ -42,6 +42,7 @@ only = {
         'num_bytes',
         'filename',
         's3_filename',
+        'has_thumb',
     ],
     'Author': [
         'id',
