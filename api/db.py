@@ -23,9 +23,13 @@ app = Flask(__name__)
 CORS(app)
 
 # Load Flask API
-api = Api(app, version='0.1')
+api = Api(
+    app,
+    version='1.0',
+    title="Health Security Net API"
+)
 
-app.config['NAME'] = 'Pandemic Respository (Schmidt) API'
+app.config['NAME'] = 'Health Security Net API'
 app.config['SWAGGER_UI_DOC_EXPANSION'] = 'list'
 app.config['SWAGGER_UI_REQUEST_DURATION'] = True
 app.config['RESTPLUS_MASK_SWAGGER'] = False

@@ -4,7 +4,7 @@ from collections import defaultdict
 
 # Third party libraries
 from flask import request, send_file
-from flask_restplus import Resource, fields
+from flask_restplus import Resource, fields, Namespace
 from pony.orm import db_session
 import pytz
 
@@ -345,3 +345,16 @@ class ExportExcelPost(Resource):
             attachment_filename=send_file_args['attachment_filename'],
             as_attachment=True
         )
+
+# # define namespaces
+# namespace_defs = [
+#     {
+#         'name': 'Downloads',
+#
+#     }
+# ]
+# ns = Namespace('Downloads')
+# print(ns)
+# print(api)
+# ns = api.add_namespace(ns)
+# api.add_resource(ExportExcelPost)
