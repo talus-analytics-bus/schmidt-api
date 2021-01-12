@@ -134,8 +134,9 @@ class SheetSettings():
                 for colname in row[colgroup]:
                     value = row[colgroup][colname]
                     # special formatting
-                    if colname.endswith('date') and value is None:
-                        value = 'Unspecified'
+                    if colname.endswith('date'):
+                        if value is None:
+                            value = 'Unspecified'
                     elif value == 'Unspecified':
                         value = ''
                     cell_format = self.formats.cell() if is_legend or \
@@ -199,8 +200,12 @@ class SheetSettings():
                     worksheet.set_column(icol, icol, 25)
                 elif self.type != 'legend' and colname == 'Description':
                     worksheet.set_column(icol, icol, 95)
-                elif self.type != 'legend' and colname in ('Type of record', 'Date published'):
+                elif self.type != 'legend' and colname in \
+                        ('Type of record', 'Date published'):
                     worksheet.set_column(icol, icol, 25)
+                elif self.type != 'legend' and colname in \
+                        ('Sortable date published'):
+                    worksheet.set_column(icol, icol, 30)
                 else:
                     worksheet.set_column(icol, icol, 50)
 
