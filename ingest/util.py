@@ -9,9 +9,10 @@ from collections import defaultdict
 
 # 3rd party modules
 import boto3
+import pprint
 from pony.orm import db_session, commit, get, select
 from pony.orm.core import EntityMeta
-import pprint
+from alive_progress import alive_bar
 
 # constants
 pp = pprint.PrettyPrinter(indent=4)
@@ -281,3 +282,36 @@ def get_s3_bucket_keys(s3_bucket_name: str):
 
     # return master list of all bucket keys
     return keys
+
+# define date type data field in model `Item` based on internal
+# research notes about date precision
+
+
+@db_session
+def define_date_types(db):
+    # items = select(i for i in db.Item)
+    # items_month_only = \
+    #     items.filter(lambda x: 'MONTH' in x.internal_research_note)
+    # items_year_only = \
+    #     items.filter(lambda x: 'YEAR' in x.internal_research_note)
+    # items_full_date = items.filter(lambda x: 'MONTH' not in x.internal_research_note and 'YEAR' not in x.internal_research_note)
+
+    items_by_date_type = select(
+        (
+            i,
+            'MONTH' in i.internal_research_note,
+            'YEAR' in i.internal_research_note
+        ) for i in db.Item
+    )
+
+    with alive_bar(len(items_by_date_type), title="Assigning date types") as bar:
+        for item, month_only, year_only in items_by_date_type:
+            bar()
+            if item.date is None:
+                item.date_type = -1
+            elif month_only:
+                item.date_type = 1
+            elif year_only:
+                item.date_type = 2
+            else:
+                item.date_type = 0
