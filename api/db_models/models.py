@@ -18,6 +18,7 @@ class Item(db.Entity):
     id = PrimaryKey(int, auto=True)
     internal_date_of_initial_entry = Optional(date, nullable=True)
     date = Optional(date, nullable=True)
+    date_type = Optional(int, nullable=True)
     type_of_record = Optional(str)
     key_topics = Set('Tag')
     title = Optional(str, sql_default="'Untitled'", nullable=True)

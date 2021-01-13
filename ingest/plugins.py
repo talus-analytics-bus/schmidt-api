@@ -19,7 +19,7 @@ import pprint
 # local modules
 from .sources import AirtableSource
 from .util import upsert, download_file, bcolors, \
-    find_all, iterable, get_s3_bucket_keys, \
+    find_all, iterable, get_s3_bucket_keys, define_date_types, \
     S3_BUCKET_NAME
 import pandas as pd
 
@@ -289,6 +289,9 @@ class SchmidtPlugin(IngestPlugin):
                 b = db.Item.get(source_id=b_id)
                 a.items.add(b)
             commit()
+
+        # add date type
+        define_date_types(db)
 
         # Delete old items from the db
         to_delete = select(i for i in db.Item if i not in all_upserted)

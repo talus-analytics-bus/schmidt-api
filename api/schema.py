@@ -1086,7 +1086,8 @@ def assign_field_value_to_export_row(row, d, field):
             Description of returned object.
 
         """
-        val_tmp = getattr(d, field.field)
+        val_tmp = getattr(d, field.field) if hasattr(d, field.field) else \
+            d.date
 
         # parse bool as yes/no
         if field.type == 'bool':
@@ -1096,6 +1097,26 @@ def assign_field_value_to_export_row(row, d, field):
                 return 'Yes'
             else:
                 return 'No'
+        elif field.type == 'date':
+            # sortable date published
+            if field.field == 'date_sortable':
+                # date published
+                if d.date_type == 1:
+                    month = str(val_tmp.month)
+                    if len(month) == 1:
+                        month = '0' + month
+                    return f'''{str(val_tmp.year)}-{month}-XX'''
+                elif d.date_type == 2:
+                    return f'''{str(val_tmp.year)}-XX-XX'''
+                elif d.date_type == 0:
+                    return str(val_tmp)
+            elif field.field == 'date':
+                if d.date_type == 1:
+                    return val_tmp.strftime("%b %Y")
+                elif d.date_type == 2:
+                    return val_tmp.strftime("%Y")
+                elif d.date_type == 0:
+                    return val_tmp.strftime("%b %d, %Y")
         else:
             return val_tmp if val_tmp is not None else ''
 

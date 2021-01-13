@@ -28,6 +28,7 @@ only = {
         'description',
         'type_of_record',
         'date',
+        'date_type',
         'funders',
         'authors',
         'events',
