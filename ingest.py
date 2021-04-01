@@ -3,14 +3,13 @@
 from os import sys
 
 # local modules
-from api import schema
 from api import db
 from ingest import SchmidtPlugin
 
 if __name__ == "__main__":
     # constants
     # airtable base ID (non-sensitive)
-    airtable_key = 'appLd31oBE5L3Q3cs'
+    airtable_key = "appLd31oBE5L3Q3cs"
 
     # initialize db connection and plugin for ingest
     plugin = SchmidtPlugin()

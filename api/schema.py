@@ -4,21 +4,16 @@
 
 # Standard libraries
 import functools
-import pytz
 import re
 import math
 import logging
-from datetime import datetime, timedelta, date
+from datetime import date
 from io import BytesIO
-from dateutil.relativedelta import relativedelta
-from collections import defaultdict
 
 # Third party libraries
 import boto3
 import pprint
-from pony.orm import select, db_session, raw_sql, distinct, count, StrArray, \
-    desc, coalesce
-from flask import send_file
+from pony.orm import select, db_session, raw_sql, count, desc, coalesce
 
 # Local libraries
 from .db_models import db
@@ -28,7 +23,7 @@ from .utils import jsonify_response, DefaultOrderedDict
 
 # pretty printing: for printing JSON objects legibly
 pp = pprint.PrettyPrinter(indent=4)
-s3 = boto3.client('s3')
+s3 = boto3.client("s3")
 
 
 def cached(func):
@@ -77,21 +72,15 @@ def get_items(
     pagesize,
     ids: list = [],
     is_desc: bool = True,
-    order_by: str = 'date'
+    order_by: str = "date",
 ):
     # get all items
     selected_items = select(
-        i for i in db.Item
-        if (
-            len(ids) == 0
-            or i.id in ids
-        )
+        i for i in db.Item if (len(ids) == 0 or i.id in ids)
     )
 
     # order items
-    ordered_items = apply_ordering_to_items(
-        selected_items, order_by, is_desc
-    )
+    ordered_items = apply_ordering_to_items(selected_items, order_by, is_desc)
 
     # get total num items, pages, etc. for response
     total = count(ordered_items)
@@ -99,12 +88,12 @@ def get_items(
     num_pages = math.ceil(total / pagesize)
 
     return {
-        'page': page,
-        'num_pages': num_pages,
-        'pagesize': pagesize,
-        'total': total,
-        'num': len(items),
-        'data': items,
+        "page": page,
+        "num_pages": num_pages,
+        "pagesize": pagesize,
+        "total": total,
+        "num": len(items),
+        "data": items,
     }
 
 
@@ -113,7 +102,7 @@ def get_item(
     page: int = 1,
     pagesize: int = 1000000,
     id: int = None,
-    include_related: bool = False
+    include_related: bool = False,
 ):
     """Returns data about the item with the given ID.
 
@@ -154,13 +143,15 @@ def get_item(
                 i
                 for i in db.Item
                 for tag in db.Tag
-                if i in item.items
-                and i != item
+                if i in item.items and i != item
             )
 
             # up to 10 items related by topic
-            max_related_to_select = 0 if related_directly.count() >= 10 \
+            max_related_to_select = (
+                0
+                if related_directly.count() >= 10
                 else 10 - related_directly.count()
+            )
             related_by_topic = select(
                 i
                 for i in db.Item
@@ -175,8 +166,7 @@ def get_item(
             all_related = select(
                 i
                 for i in db.Item
-                if i in related_directly
-                or i in related_by_topic
+                if i in related_directly or i in related_by_topic
             ).order_by(lambda x: x not in item.items)
 
             # get grand total
@@ -196,23 +186,23 @@ def get_item(
             else:
                 why = list()
                 if d in item.items:
-                    why.append('directly related')
+                    why.append("directly related")
                 if not d in item.items:
-                    why.append('similar topic')
+                    why.append("similar topic")
 
                 already_added.add(d.id)
                 datum = d.to_dict(
-                    exclude=['search_text'],
+                    exclude=["search_text"],
                     with_collections=True,
                     related_objects=True,
                 )
-                datum['why'] = why
+                datum["why"] = why
                 related_dicts.append(datum)
 
         # create response dict
         res = {
-            'data': item.to_dict(
-                exclude=['search_text'],
+            "data": item.to_dict(
+                exclude=["search_text"],
                 with_collections=True,
                 related_objects=True,
             ),
@@ -220,12 +210,12 @@ def get_item(
 
         # add pagination data to response, if relevant
         if include_related:
-            res['num_pages'] = math.ceil(total / pagesize)
-            res['page'] = page
-            res['pagesize'] = pagesize
-            res['total'] = total
-            res['num'] = len(related_dicts)
-            res['related_items'] = related_dicts
+            res["num_pages"] = math.ceil(total / pagesize)
+            res["page"] = page
+            res["pagesize"] = pagesize
+            res["total"] = total
+            res["num"] = len(related_dicts)
+            res["related_items"] = related_dicts
         return res
 
 
@@ -245,31 +235,32 @@ def get_file(id: int, get_thumb: bool):
 
     # define filename from File instance field
     file = db.File[id]
-    key = file.s3_filename if not get_thumb else file.s3_filename + '_thumb'
+    key = file.s3_filename if not get_thumb else file.s3_filename + "_thumb"
 
     # retrieve file and write it to IO file object `data`
     # if the file is not found in S3, return a 404 error
     data = BytesIO()
     try:
-        s3.download_fileobj('schmidt-storage', key, data)
+        s3.download_fileobj("schmidt-storage", key, data)
     except Exception as e:
         logging.exception(e)
-        return 'Document not found (404)'
+        return "Document not found (404)"
 
     # # return to start of IO stream
     # data.seek(0)
 
     # return file with correct media type given its extension
-    media_type = 'application'
-    if key.endswith('.pdf'):
-        media_type = 'application/pdf'
+    media_type = "application"
+    if key.endswith(".pdf"):
+        media_type = "application/pdf"
 
-    attachment_filename = file.filename if not get_thumb else \
-        file.s3_filename + '_thumb.png'
+    attachment_filename = (
+        file.filename if not get_thumb else file.s3_filename + "_thumb.png"
+    )
     return {
-        'data': data,
-        'attachment_filename': attachment_filename,
-        'as_attachment': False
+        "data": data,
+        "attachment_filename": attachment_filename,
+        "as_attachment": False,
     }
 
 
@@ -280,7 +271,7 @@ def get_search(
     pagesize: int,
     filters: dict = {},
     search_text: str = None,
-    order_by: str = 'date',
+    order_by: str = "date",
     is_desc: bool = True,
     preview: bool = False,
     explain_results: bool = True,
@@ -301,14 +292,17 @@ def get_search(
 
     """
     # get ordered items, from cache if available
-    [ordered_items, filter_counts, other_instances] = \
-        get_ordered_items_and_filter_counts(
-            filters=filters,
-            search_text=search_text,
-            order_by=order_by,
-            is_desc=is_desc,
-            preview=preview,
-            explain_results=explain_results,
+    [
+        ordered_items,
+        filter_counts,
+        other_instances,
+    ] = get_ordered_items_and_filter_counts(
+        filters=filters,
+        search_text=search_text,
+        order_by=order_by,
+        is_desc=is_desc,
+        preview=preview,
+        explain_results=explain_results,
     )
 
     # paginate items
@@ -325,17 +319,22 @@ def get_search(
 
     # if applicable, get explanation for search results (snippets)
     data_snippets = list()
-    if not preview and explain_results and search_text is not None \
-            and search_text != '':
+    if (
+        not preview
+        and explain_results
+        and search_text is not None
+        and search_text != ""
+    ):
         search_items_with_snippets = list()
-        cur_search_text = search_text.lower() if search_text is not None \
-            else ''
+        cur_search_text = (
+            search_text.lower() if search_text is not None else ""
+        )
 
         # TODO reuse code in search.py
         pattern = re.compile(cur_search_text, re.IGNORECASE)
 
         def repl(x):
-            return '<highlight>' + x.group(0) + '</highlight>'
+            return "<highlight>" + x.group(0) + "</highlight>"
 
         for d in items:
             snippets = dict()
@@ -343,25 +342,24 @@ def get_search(
             # check basic string fields for exact-insensitive matches
             # TODO tag fields, linked fields
             fields_str = (
-                'type_of_record',
-                'title',
-                'description',
-                'link',
-                'sub_organizations',
+                "type_of_record",
+                "title",
+                "description",
+                "link",
+                "sub_organizations",
             )
 
             # basic fields
             for field in fields_str:
                 if cur_search_text in getattr(d, field).lower():
                     at_least_one = True
-                    snippets[field] = re.sub(
-                        pattern, repl, getattr(d, field))
+                    snippets[field] = re.sub(pattern, repl, getattr(d, field))
 
             # tag fields
             # TODO
             fields_tag_str = (
-                ('key_topics', 'name'),
-                ('events', 'name'),
+                ("key_topics", "name"),
+                ("events", "name"),
             )
             for field, linked_field in fields_tag_str:
                 tags = getattr(getattr(d, field), linked_field)
@@ -370,48 +368,51 @@ def get_search(
                     if cur_search_text in value.lower():
                         at_least_one = True
                         snippets[field] = re.sub(
-                            pattern, repl, getattr(d, field))
+                            pattern, repl, getattr(d, field)
+                        )
                 else:
                     matches = list()
                     for v in value:
                         if cur_search_text in v.lower():
                             at_least_one = True
                             matches.append(
-                                {
-                                    'name': re.sub(
-                                        pattern, repl, v),
-                                    'id': v
-                                }
+                                {"name": re.sub(pattern, repl, v), "id": v}
                             )
                     if len(matches) > 0:
                         snippets[field] = matches
 
             # linked fields
             linked_fields_str = (
-                'authors.authoring_organization',
-                'authors.acronym',
-                'funders.name',
+                "authors.authoring_organization",
+                "authors.acronym",
+                "funders.name",
             )
             for field_tmp in linked_fields_str:
-                arr_tmp = field_tmp.split('.')
+                arr_tmp = field_tmp.split(".")
                 entity_name = arr_tmp[0]
                 field = arr_tmp[1]
                 for linked_instance in getattr(d, entity_name):
-                    if cur_search_text in getattr(linked_instance, field).lower():
+                    if (
+                        cur_search_text
+                        in getattr(linked_instance, field).lower()
+                    ):
                         at_least_one = True
 
                         # if the field is the author's acronym, count this as
                         # a match with the entire author's name
-                        count_as_entire_author_name = \
-                            field_tmp == 'authors.acronym'
+                        count_as_entire_author_name = (
+                            field_tmp == "authors.acronym"
+                        )
 
                         # get value of match
-                        value = getattr(linked_instance, field) if not \
-                            count_as_entire_author_name else \
-                            linked_instance.authoring_organization
+                        value = (
+                            getattr(linked_instance, field)
+                            if not count_as_entire_author_name
+                            else linked_instance.authoring_organization
+                        )
 
                         if count_as_entire_author_name:
-                            field = 'authoring_organization'
+                            field = "authoring_organization"
 
                         if entity_name not in snippets:
                             snippets[entity_name] = []
@@ -422,75 +423,68 @@ def get_search(
                         # highlight relevant snippet, unless this is an acronym
                         # match, in which case highlight entire publisher name
                         if not count_as_entire_author_name:
-                            cur_snippet[field] = re.sub(
-                                pattern, repl, value
-                            )
+                            cur_snippet[field] = re.sub(pattern, repl, value)
                         else:
-                            cur_snippet[field] = \
-                                f'''<highlight>{value}</highlight>'''
+                            cur_snippet[
+                                field
+                            ] = f"""<highlight>{value}</highlight>"""
 
-                        cur_snippet['id'] = linked_instance.id
-                        snippets[entity_name].append(
-                            cur_snippet
-                        )
+                        cur_snippet["id"] = linked_instance.id
+                        snippets[entity_name].append(cur_snippet)
 
             # custom tags?
             if any(search_text in dd.lower() for dd in d.tags.name):
                 at_least_one = True
-                snippets['tags'] = 'Search tags contain text match'
+                snippets["tags"] = "Search tags contain text match"
 
             # pdf?
-            if d.file_search_text is not None and \
-                    cur_search_text in d.file_search_text:
+            if (
+                d.file_search_text is not None
+                and cur_search_text in d.file_search_text
+            ):
                 at_least_one = True
-                snippets['files'] = 'PDF file contains text match'
+                snippets["files"] = "PDF file contains text match"
 
             # append results
-            data_snippets.append(
-                snippets if at_least_one else dict()
-            )
+            data_snippets.append(snippets if at_least_one else dict())
 
     # if preview: return counts of items and matching instances
     data = None
     if preview:
 
         data = {
-            'n_items': total,
-            'other_instances': other_instances,
-            'search_text': search_text
+            "n_items": total,
+            "other_instances": other_instances,
+            "search_text": search_text,
         }
     else:
         # otherwise: return paginated items and details
         num_pages = math.ceil(total / pagesize)
         item_dicts = [
             d.to_dict(
-                exclude=['search_text'],
+                exclude=["search_text"],
                 with_collections=True,
                 related_objects=True,
             )
             for d in items
         ]
         data = {
-            'page': page,
-            'num_pages': num_pages,
-            'pagesize': pagesize,
-            'total': total,
-            'num': len(item_dicts),
-            'data': item_dicts,
+            "page": page,
+            "num_pages": num_pages,
+            "pagesize": pagesize,
+            "total": total,
+            "num": len(item_dicts),
+            "data": item_dicts,
         }
         if explain_results:
-            data['data_snippets'] = data_snippets
-            data['filter_counts'] = filter_counts
+            data["data_snippets"] = data_snippets
+            data["filter_counts"] = filter_counts
 
     return data
 
 
 @db_session
-def apply_filters_to_items(
-    items,
-    filters: dict = {},
-    search_text: str = None
-):
+def apply_filters_to_items(items, filters: dict = {}, search_text: str = None):
     """Given a set of filters, returns the items that match. If
     `explain_results` is True, return for each item the field(s) that matched
     and a highlighted text snippet (HTML) that shows what matched.
@@ -510,7 +504,7 @@ def apply_filters_to_items(
         Description of returned object.
 
     """
-    tag_sets = ('key_topics',)
+    tag_sets = ("key_topics",)
     for field in filters:
         allowed_values = filters[field]
 
@@ -520,8 +514,7 @@ def apply_filters_to_items(
                 i_filtered
                 for i_filtered in items
                 for j_topic in i_filtered.key_topics
-                if j_topic.name in allowed_values
-                and j_topic.field == field
+                if j_topic.name in allowed_values and j_topic.field == field
             ).prefetch(
                 db.Item.key_topics,
                 db.Item.funders,
@@ -529,16 +522,16 @@ def apply_filters_to_items(
                 db.Item.tags,
                 db.Item.files,
                 db.Item.events,
-                db.Item.items
+                db.Item.items,
             )
 
         # filter items by linked attributes
-        elif '.' in field:
-            field_arr = field.split('.')
+        elif "." in field:
+            field_arr = field.split(".")
             entity_name = field_arr[0]
             linked_field = field_arr[1]
             entity = getattr(db, entity_name.capitalize())
-            if entity_name == 'author' and linked_field == 'id':
+            if entity_name == "author" and linked_field == "id":
                 items = select(
                     i_linked_author
                     for i_linked_author in items
@@ -551,14 +544,18 @@ def apply_filters_to_items(
                     db.Item.tags,
                     db.Item.files,
                     db.Item.events,
-                    db.Item.items
+                    db.Item.items,
                 )
-            elif entity_name == 'author' and linked_field == 'type_of_authoring_organization':
+            elif (
+                entity_name == "author"
+                and linked_field == "type_of_authoring_organization"
+            ):
                 items = select(
                     i_linked_author_type
                     for i_linked_author_type in items
                     for j_linked_author_type in i_linked_author_type.authors
-                    if str(j_linked_author_type.type_of_authoring_organization) in allowed_values
+                    if str(j_linked_author_type.type_of_authoring_organization)
+                    in allowed_values
                 ).prefetch(
                     db.Item.key_topics,
                     db.Item.funders,
@@ -566,9 +563,9 @@ def apply_filters_to_items(
                     db.Item.tags,
                     db.Item.files,
                     db.Item.events,
-                    db.Item.items
+                    db.Item.items,
                 )
-            elif entity_name == 'funder' and linked_field == 'name':
+            elif entity_name == "funder" and linked_field == "name":
                 items = select(
                     i_linked_funder
                     for i_linked_funder in items
@@ -581,13 +578,13 @@ def apply_filters_to_items(
                     db.Item.tags,
                     db.Item.files,
                     db.Item.events,
-                    db.Item.items
+                    db.Item.items,
                 )
             else:
                 items = select(
                     i_linked
                     for i_linked in items
-                    for j_linked in getattr(i_linked, entity_name + 's')
+                    for j_linked in getattr(i_linked, entity_name + "s")
                     if str(getattr(j_linked, linked_field)) in allowed_values
                 ).prefetch(
                     db.Item.key_topics,
@@ -596,11 +593,11 @@ def apply_filters_to_items(
                     db.Item.tags,
                     db.Item.files,
                     db.Item.events,
-                    db.Item.items
+                    db.Item.items,
                 )
         # special: years
-        elif field == 'years':
-            if 'range' not in allowed_values[0]:
+        elif field == "years":
+            if "range" not in allowed_values[0]:
                 items = select(
                     i_years
                     for i_years in items
@@ -612,17 +609,16 @@ def apply_filters_to_items(
                     db.Item.tags,
                     db.Item.files,
                     db.Item.events,
-                    db.Item.items
+                    db.Item.items,
                 )
             else:
-                range = allowed_values[0].split('_')[1:3]
-                start = int(range[0]) if range[0] != 'null' else 0
-                end = int(range[1]) if range[1] != 'null' else 9999
+                range = allowed_values[0].split("_")[1:3]
+                start = int(range[0]) if range[0] != "null" else 0
+                end = int(range[1]) if range[1] != "null" else 9999
                 items = select(
                     i_range
                     for i_range in items
-                    if i_range.date.year >= start
-                    and i_range.date.year <= end
+                    if i_range.date.year >= start and i_range.date.year <= end
                 ).prefetch(
                     db.Item.key_topics,
                     db.Item.funders,
@@ -630,7 +626,7 @@ def apply_filters_to_items(
                     db.Item.tags,
                     db.Item.files,
                     db.Item.events,
-                    db.Item.items
+                    db.Item.items,
                 )
         else:
             items = select(
@@ -644,11 +640,11 @@ def apply_filters_to_items(
                 db.Item.tags,
                 db.Item.files,
                 db.Item.events,
-                db.Item.items
+                db.Item.items,
             )
 
     # apply search text
-    if search_text is not None and search_text != '':
+    if search_text is not None and search_text != "":
         max_chars = 1000
         cur_search_text = search_text.lower()
         items = select(
@@ -663,17 +659,14 @@ def apply_filters_to_items(
             db.Item.tags,
             db.Item.files,
             db.Item.events,
-            db.Item.items
+            db.Item.items,
         )
 
     return items
 
 
 def apply_ordering_to_items(
-    items,
-    order_by: str = 'date',
-    is_desc: bool = True,
-    search_text=None
+    items, order_by: str = "date", is_desc: bool = True, search_text=None
 ):
     """Given an ordering, returns the items in that order.
 
@@ -691,9 +684,9 @@ def apply_ordering_to_items(
 
     """
     # TODO implement col ordering (relevance is done for now)
-    by_relevance = order_by == 'relevance'
+    by_relevance = order_by == "relevance"
     item_ids_by_relevance = list()
-    if by_relevance and search_text is not None and search_text != '':
+    if by_relevance and search_text is not None and search_text != "":
 
         cur_search_text = search_text.lower()
         for d in items:
@@ -704,34 +697,31 @@ def apply_ordering_to_items(
                 relevance = 2
             else:
                 relevance = 0
-            item_ids_by_relevance.append(
-                (
-                    d.id,
-                    relevance
-                )
-            )
+            item_ids_by_relevance.append((d.id, relevance))
         item_ids_by_relevance.sort(key=lambda x: x[1])
         item_ids_by_relevance.reverse()
         item_ids = [i[0] for i in item_ids_by_relevance]
         items = [db.Item[i[0]] for i in item_ids_by_relevance]
         # if not sorting by relevance, handle other cases
-    elif order_by == 'date' or order_by == 'title':
-        desc_text = 'DESC' if is_desc else ''
+    elif order_by == "date" or order_by == "title":
+        desc_text = "DESC" if is_desc else ""
 
         # put nulls last always
-        if order_by == 'date':
-            items = items.order_by(raw_sql(f'''i.date {desc_text} NULLS LAST'''))
-        elif order_by == 'title':
-            items = items.order_by(raw_sql(f'''i.title {desc_text} NULLS LAST'''))
+        if order_by == "date":
+            items = items.order_by(
+                raw_sql(f"""i.date {desc_text} NULLS LAST""")
+            )
+        elif order_by == "title":
+            items = items.order_by(
+                raw_sql(f"""i.title {desc_text} NULLS LAST""")
+            )
 
     return items
 
 
 @db_session
 def get_matching_instances(
-    items,
-    search_text: str = None,
-    explain_results: bool = True
+    items, search_text: str = None, explain_results: bool = True
 ):
     """Given filters, return dict of lists of matching instances by class.
 
@@ -748,17 +738,17 @@ def get_matching_instances(
     """
 
     # if blank, return nothing
-    if search_text is None or search_text == '':
+    if search_text is None or search_text == "":
         return {}
     else:
         matching_instances = {}
         # otherwise: check key fields for each entity class in turn for matches
         to_check = {
-            'Author': {
-                'fields': ['authoring_organization'],
-                'match_type': 'exact-insensitive',  # TODO other types
-                'snip_length': 1000000,
-                'items_query': lambda x: lambda i: x in i.authors
+            "Author": {
+                "fields": ["authoring_organization"],
+                "match_type": "exact-insensitive",  # TODO other types
+                "snip_length": 1000000,
+                "items_query": lambda x: lambda i: x in i.authors,
             },
             # 'Funder': {
             #     'fields': ['name'],
@@ -766,22 +756,19 @@ def get_matching_instances(
             #     'snip_length': 1000000,
             #     'items_query': lambda x: lambda i: x in i.funders
             # },
-            'Event': {
-                'fields': ['name'],
-                'match_type': 'exact-insensitive',
-                'snip_length': 1000000,
-                'items_query': lambda x: lambda i: x in i.events
+            "Event": {
+                "fields": ["name"],
+                "match_type": "exact-insensitive",
+                "snip_length": 1000000,
+                "items_query": lambda x: lambda i: x in i.events,
             },
-            'Key_Topic': {
-                'match_type': 'exact-insensitive',
-                'items_query': lambda x: lambda i: x in i.key_topics.name
-            }
+            "Key_Topic": {
+                "match_type": "exact-insensitive",
+                "items_query": lambda x: lambda i: x in i.key_topics.name,
+            },
         }
         matching_instances = search.get_matching_instances(
-            to_check,
-            items,
-            search_text,
-            explain_results
+            to_check, items, search_text, explain_results
         )
 
         # if match, return matching text and relevance score
@@ -792,8 +779,10 @@ def get_matching_instances(
 
 @db_session
 def get_items_if_other_filters_in_category_not_applied(
-    items: any = None, filters: dict = {}, filter_field: str = None,
-    search_text: str = None
+    items: any = None,
+    filters: dict = {},
+    filter_field: str = None,
+    search_text: str = None,
 ):
     """Return counts for each value in a filter category if that filter were
     applied to the current item set with all other filter categories applied,
@@ -817,8 +806,11 @@ def get_items_if_other_filters_in_category_not_applied(
 @db_session
 # @cached
 def get_metadata_value_counts(
-    items=None, all_items=None, exclude=[], filters=None,
-    search_text: str = None
+    items=None,
+    all_items=None,
+    exclude=[],
+    filters=None,
+    search_text: str = None,
 ):
     """Given a set of items, returns the possible filter values in them and
     the number of items for each.
@@ -845,46 +837,46 @@ def get_metadata_value_counts(
         all_items = db.Item
 
     # exclude None-values if those are in the `exclude` list as 'null'
-    allow_none = 'null' not in exclude
+    allow_none = "null" not in exclude
 
     # define
     to_check = [
         {
-            'key': 'years',
-            'field': 'date',
-            'filter_field': 'years',
-            'is_date_part': True,
-            'link_field': 'year',
+            "key": "years",
+            "field": "date",
+            "filter_field": "years",
+            "is_date_part": True,
+            "link_field": "year",
         },
         {
-            'field': 'events',
-            'link_field': 'name',
-            'filter_field': 'event.name'
+            "field": "events",
+            "link_field": "name",
+            "filter_field": "event.name",
         },
         {
-            'field': 'key_topics',
-            'link_field': 'name',  # if present, will link from item
+            "field": "key_topics",
+            "link_field": "name",  # if present, will link from item
         },
         {
-            'field': 'authors',
-            'filter_field': 'author.id',
-            'link_field': 'authoring_organization',
-            'include_id_and_acronym': True
+            "field": "authors",
+            "filter_field": "author.id",
+            "link_field": "authoring_organization",
+            "include_id_and_acronym": True,
         },
         {
-            'key': 'author_types',
-            'field': 'authors',
-            'link_field': 'type_of_authoring_organization',
-            'filter_field': 'author.type_of_authoring_organization',
+            "key": "author_types",
+            "field": "authors",
+            "link_field": "type_of_authoring_organization",
+            "filter_field": "author.type_of_authoring_organization",
         },
         {
-            'field': 'funders',
-            'link_field': 'name',
-            'filter_field': 'funder.name',
+            "field": "funders",
+            "link_field": "name",
+            "filter_field": "funder.name",
         },
         {
-            'key': 'types_of_record',
-            'field': 'type_of_record',
+            "key": "types_of_record",
+            "field": "type_of_record",
         },
     ]
 
@@ -904,9 +896,9 @@ def get_metadata_value_counts(
             return select(
                 (
                     getattr(j, link_field),
-                    coalesce(j.acronym, ''),
+                    coalesce(j.acronym, ""),
                     count(i),
-                    j.id
+                    j.id,
                 )
                 for i in field_items
                 for j in getattr(i, field)
@@ -915,10 +907,7 @@ def get_metadata_value_counts(
             ).order_by(order_by_func)[:][:]
         else:
             return select(
-                (
-                    getattr(j, link_field),
-                    count(i)
-                )
+                (getattr(j, link_field), count(i))
                 for i in field_items
                 for j in getattr(i, field)
                 if getattr(j, link_field) not in exclude
@@ -932,18 +921,18 @@ def get_metadata_value_counts(
     # in it overall and by value, except those in `exclude`
     for d in to_check:
         # init key params
-        field = d['field']
-        filter_field = d.get('filter_field', field)
-        key = d.get('key', d['field'])
-        is_linked = 'link_field' in d
-        is_date_part = d.get('is_date_part', False)
+        field = d["field"]
+        filter_field = d.get("filter_field", field)
+        key = d.get("key", d["field"])
+        is_linked = "link_field" in d
+        is_date_part = d.get("is_date_part", False)
 
         # get `items` to use for this category
         field_items = get_items_if_other_filters_in_category_not_applied(
             items=all_items,
             filters=filters,
             filter_field=filter_field,
-            search_text=search_text
+            search_text=search_text,
         )
 
         # init output dict section
@@ -951,37 +940,41 @@ def get_metadata_value_counts(
 
         if is_date_part:
             # error handling
-            if 'link_field' not in d:
+            if "link_field" not in d:
                 raise KeyError(
-                    'Must define a `link_field` value for date'
-                    ' parts, e.g., \'year\'')
+                    "Must define a `link_field` value for date"
+                    " parts, e.g., 'year'"
+                )
 
-            link_field = d['link_field']  # the date part, e.g., `year`
+            link_field = d["link_field"]  # the date part, e.g., `year`
 
             # get unique count of items that meet exclusion criteria
             unique_count = select(
                 i
                 for i in field_items
                 if str(getattr(getattr(i, field), link_field)) not in exclude
-                and (str(getattr(getattr(i, field), link_field)) is not None or allow_none)
+                and (
+                    str(getattr(getattr(i, field), link_field)) is not None
+                    or allow_none
+                )
             ).count()
-            output[key]['unique'] = unique_count
+            output[key]["unique"] = unique_count
 
             by_value_counts = select(
-                (
-                    getattr(getattr(i, field), link_field),
-                    count(i)
-                )
+                (getattr(getattr(i, field), link_field), count(i))
                 for i in field_items
                 if str(getattr(getattr(i, field), link_field)) not in exclude
-                and (str(getattr(getattr(i, field), link_field)) is not None or allow_none)
+                and (
+                    str(getattr(getattr(i, field), link_field)) is not None
+                    or allow_none
+                )
             ).order_by(get_order_by_func(False))[:][:]
-            output[key]['by_value'] = by_value_counts
+            output[key]["by_value"] = by_value_counts
 
         # count linked fields specially
         elif is_linked:
-            link_field = d['link_field']
-            include_id_and_acronym = d.get('include_id_and_acronym', False)
+            link_field = d["link_field"]
+            include_id_and_acronym = d.get("include_id_and_acronym", False)
 
             # get unique count of items that meet exclusion criteria
             unique_count = select(
@@ -991,12 +984,12 @@ def get_metadata_value_counts(
                 if getattr(j, link_field) not in exclude
                 and (getattr(j, link_field) is not None or allow_none)
             ).count()
-            output[key]['unique'] = unique_count
+            output[key]["unique"] = unique_count
 
             by_value_counts = get_query_body(
                 include_id_and_acronym, link_field, field_items
             )
-            output[key]['by_value'] = by_value_counts
+            output[key]["by_value"] = by_value_counts
 
         # count standard fields
         else:
@@ -1007,18 +1000,15 @@ def get_metadata_value_counts(
                 if getattr(i, field) not in exclude
                 and (getattr(i, field) is not None or allow_none)
             ).count()
-            output[key]['unique'] = unique_count
+            output[key]["unique"] = unique_count
 
             by_value_counts = select(
-                (
-                    getattr(i, field),
-                    count(i)
-                )
+                (getattr(i, field), count(i))
                 for i in field_items
                 if getattr(i, field) not in exclude
                 and (getattr(i, field) is not None or allow_none)
             ).order_by(get_order_by_func(False))[:][:]
-            output[key]['by_value'] = by_value_counts
+            output[key]["by_value"] = by_value_counts
 
     return output
 
@@ -1033,23 +1023,25 @@ def export(filters: dict = None, search_text: str = None):
         The filters to apply.
 
     """
-    media_type = 'application/' + \
-        'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    media_type = (
+        "application/"
+        + "vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
     # Create Excel export file
     export_instance = SchmidtExportPlugin(
-        db, filters, search_text=search_text, class_name='Item'
+        db, filters, search_text=search_text, class_name="Item"
     )
     content = export_instance.build()
 
     # return the file
     today = date.today()
-    attachment_filename = f'''Health Security Net - Data Download.xlsx'''
+    attachment_filename = f"""Health Security Net - Data Download.xlsx"""
 
     return {
-        'content': content,
-        'attachment_filename': attachment_filename,
-        'as_attachment': True
+        "content": content,
+        "attachment_filename": attachment_filename,
+        "as_attachment": True,
     }
 
 
@@ -1070,6 +1062,7 @@ def assign_field_value_to_export_row(row, d, field):
         Description of returned object.
 
     """
+
     def get_val(d, field):
         """Get formatted value of field based on type.
 
@@ -1086,31 +1079,32 @@ def assign_field_value_to_export_row(row, d, field):
             Description of returned object.
 
         """
-        val_tmp = getattr(d, field.field) if hasattr(d, field.field) else \
-            d.date
+        val_tmp = (
+            getattr(d, field.field) if hasattr(d, field.field) else d.date
+        )
 
         # parse bool as yes/no
-        if field.type == 'bool':
+        if field.type == "bool":
             if val_tmp is None:
-                return ''
+                return ""
             elif val_tmp == True:
-                return 'Yes'
+                return "Yes"
             else:
-                return 'No'
-        elif field.type == 'date':
+                return "No"
+        elif field.type == "date":
             # sortable date published
-            if field.field == 'date_sortable':
+            if field.field == "date_sortable":
                 # date published
                 if d.date_type == 1:
                     month = str(val_tmp.month)
                     if len(month) == 1:
-                        month = '0' + month
-                    return f'''{str(val_tmp.year)}-{month}-XX'''
+                        month = "0" + month
+                    return f"""{str(val_tmp.year)}-{month}-XX"""
                 elif d.date_type == 2:
-                    return f'''{str(val_tmp.year)}-XX-XX'''
+                    return f"""{str(val_tmp.year)}-XX-XX"""
                 elif d.date_type == 0:
                     return str(val_tmp)
-            elif field.field == 'date':
+            elif field.field == "date":
                 if d.date_type == 1:
                     return val_tmp.strftime("%b %Y")
                 elif d.date_type == 2:
@@ -1118,13 +1112,13 @@ def assign_field_value_to_export_row(row, d, field):
                 elif d.date_type == 0:
                     return val_tmp.strftime("%b %d, %Y")
         else:
-            return val_tmp if val_tmp is not None else ''
+            return val_tmp if val_tmp is not None else ""
 
     linked = field.linked_entity_name != field.entity_name
     if not linked:
         row[field.colgroup][field.display_name] = get_val(d, field)
     else:
-        linked_field_name = field.linked_entity_name.lower() + 's'
+        linked_field_name = field.linked_entity_name.lower() + "s"
         linked_instances = getattr(d, linked_field_name)
         strs = list()
         for dd in linked_instances:
@@ -1152,17 +1146,15 @@ def get_export_data(filters: dict = None, search_text: str = None):
 
     # get data fields to be exported
     export_fields = select(
-        i for i in db.Metadata
-        if i.entity_name == 'Item'
-        and i.export
+        i for i in db.Metadata if i.entity_name == "Item" and i.export
     ).order_by(db.Metadata.order)
 
     # get items to be exported
-    ids = [] if 'id' not in filters else filters['id']
-    order_field = 'date'
-    items = select(
-        i for i in db.Item
-    ).order_by(raw_sql(f'''i.{order_field} DESC NULLS LAST'''))
+    ids = [] if "id" not in filters else filters["id"]
+    order_field = "date"
+    items = select(i for i in db.Item).order_by(
+        raw_sql(f"""i.{order_field} DESC NULLS LAST""")
+    )
     filtered_items = apply_filters_to_items(items, filters, search_text)
 
     # get rows
@@ -1182,14 +1174,10 @@ def get_export_data(filters: dict = None, search_text: str = None):
 @db_session
 @jsonify_response
 def get_export_legend_data():
-    """Returns legend entry data for all fields exported in XLSX file.
-
-    """
+    """Returns legend entry data for all fields exported in XLSX file."""
     # get data fields to be exported
     export_fields = select(
-        i for i in db.Metadata
-        if i.entity_name == 'Item'
-        and i.export
+        i for i in db.Metadata if i.entity_name == "Item" and i.export
     ).order_by(db.Metadata.order)
 
     # format data for export
@@ -1197,12 +1185,10 @@ def get_export_legend_data():
     val_row = DefaultOrderedDict(DefaultOrderedDict)
     for field in export_fields:
         # definition
-        def_row[field.colgroup][field.display_name] = \
-            field.definition
+        def_row[field.colgroup][field.display_name] = field.definition
 
         # possible values
-        val_row[field.colgroup][field.display_name] = \
-            field.possible_values
+        val_row[field.colgroup][field.display_name] = field.possible_values
 
     return [def_row, val_row]
 
@@ -1212,7 +1198,7 @@ def get_export_legend_data():
 def get_ordered_items_and_filter_counts(
     filters: dict = {},
     search_text: str = None,
-    order_by: str = 'date',
+    order_by: str = "date",
     is_desc: bool = True,
     preview: bool = False,
     explain_results: bool = True,
@@ -1221,23 +1207,23 @@ def get_ordered_items_and_filter_counts(
     all_items = get_all_items()
 
     # filter items
-    filtered_items = apply_filters_to_items(
-        all_items,
-        filters,
-        search_text
-    )
+    filtered_items = apply_filters_to_items(all_items, filters, search_text)
 
     # if search text not null and not preview: get matching instances by class
-    other_instances = get_matching_instances(
-        filtered_items,
-        search_text,
-        explain_results  # TODO dynamically
-    ) if preview else []
+    other_instances = (
+        get_matching_instances(
+            filtered_items, search_text, explain_results  # TODO dynamically
+        )
+        if preview
+        else []
+    )
 
     # get filter value counts for current set
     filter_counts = get_metadata_value_counts(
-        items=filtered_items, all_items=all_items, filters=filters,
-        search_text=search_text
+        items=filtered_items,
+        all_items=all_items,
+        filters=filters,
+        search_text=search_text,
     )
 
     # get ordered items
@@ -1247,11 +1233,7 @@ def get_ordered_items_and_filter_counts(
     ordered_items = ordered_items_q
 
     # get results
-    results = [
-        ordered_items,
-        filter_counts,
-        other_instances
-    ]
+    results = [ordered_items, filter_counts, other_instances]
 
     # order items
     return results
@@ -1259,16 +1241,14 @@ def get_ordered_items_and_filter_counts(
 
 @cached_items
 def get_all_items():
-    return select(
-        i for i in db.Item
-    ).prefetch(
+    return select(i for i in db.Item).prefetch(
         db.Item.key_topics,
         db.Item.funders,
         db.Item.authors,
         db.Item.tags,
         db.Item.files,
         db.Item.events,
-        db.Item.items
+        db.Item.items,
     )
 
 
@@ -1282,5 +1262,6 @@ def get_glossary():
         List of PonyORM records for glossary.
 
     """
-    return db.Glossary.select() \
-        .order_by(db.Glossary.colname, db.Glossary.term)[:][:]
+    return db.Glossary.select().order_by(
+        db.Glossary.colname, db.Glossary.term
+    )[:][:]
