@@ -1,19 +1,16 @@
 """Define project-specific methods for data ingestion."""
 # standard modules
 import os
-import pytz
-import time
 from io import BytesIO
 from os import sys
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
 
 # 3rd party modules
 import boto3
 import pdfplumber
 from alive_progress import alive_bar
-from pony.orm import db_session, commit, get, select, delete, StrArray
-from pony.orm.core import CacheIndexError, ObjectNotFound
+from pony.orm import db_session, commit, select
 import pprint
 
 # local modules
@@ -21,8 +18,6 @@ from .sources import AirtableSource
 from .util import (
     upsert,
     download_file,
-    bcolors,
-    find_all,
     iterable,
     get_s3_bucket_keys,
     define_date_types,
