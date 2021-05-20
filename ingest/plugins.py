@@ -464,6 +464,8 @@ class SchmidtPlugin(IngestPlugin):
             # get items this refers to
             for fkey in d[fkey_field]:
                 item = db.Item.get(id=fkey)
+                if item is None:
+                    continue
 
                 # upsert author instance
                 upsert_get = {
@@ -538,6 +540,8 @@ class SchmidtPlugin(IngestPlugin):
             # get items this refers to
             for fkey in d[fkey_field]:
                 item = db.Item.get(id=fkey)
+                if item is None:
+                    continue
 
                 # upsert funder instance
                 upsert_get = {
@@ -584,7 +588,9 @@ class SchmidtPlugin(IngestPlugin):
         # for each item
         for d in self.item.to_dict(orient="records"):
             event_defined = d["Event category"] != ""
-            item = db.Item[int(d["ID (automatically assigned)"])]
+            item = db.Item.get(id=int(d["ID (automatically assigned)"]))
+            if item is None:
+                continue
             item_defined = item is not None
             if not event_defined or not item_defined:
                 continue
@@ -651,7 +657,7 @@ class SchmidtPlugin(IngestPlugin):
                 cur_item_dict = cur_item_dict + 1
 
                 file_defined = d["PDF Attachments"] != ""
-                item = db.Item[int(d["ID (automatically assigned)"])]
+                item = db.Item.get(id=int(d["ID (automatically assigned)"]))
                 item_defined = item is not None
                 if (
                     not file_defined
