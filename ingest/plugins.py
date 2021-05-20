@@ -1,19 +1,16 @@
 """Define project-specific methods for data ingestion."""
 # standard modules
 import os
-import pytz
-import time
 from io import BytesIO
 from os import sys
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
 
 # 3rd party modules
 import boto3
 import pdfplumber
 from alive_progress import alive_bar
-from pony.orm import db_session, commit, get, select, delete, StrArray
-from pony.orm.core import CacheIndexError, ObjectNotFound
+from pony.orm import db_session, commit, select
 import pprint
 
 # local modules
@@ -21,8 +18,6 @@ from .sources import AirtableSource
 from .util import (
     upsert,
     download_file,
-    bcolors,
-    find_all,
     iterable,
     get_s3_bucket_keys,
     define_date_types,
@@ -197,8 +192,30 @@ class SchmidtPlugin(IngestPlugin):
         # list when ingest is complete
         all_upserted = set()
 
+        def reject(d: dict) -> bool:
+            """Return True if the item datum is acceptable to add to the
+            database and False otherwise.
+
+            Args:
+                d (dict): The item datum based on the Airtable record.
+
+            Returns:
+                bool: True if the item datum is acceptable to add to the
+                database and False otherwise.
+            """
+            desc: str = d.get("Description", "").strip()
+            no_desc: bool = desc == ""
+            not_ready: bool = not d.get("Final review", False)
+            if no_desc or not_ready:
+                return True
+            return False
+
         # parse items into instances to write to database
         for d in self.item.to_dict(orient="records"):
+
+            # reject item data if not acceptable
+            if reject(d):
+                continue
 
             if d["Linked Record ID"] != "":
                 for source_id in d["Linked Record ID"]:
@@ -447,6 +464,8 @@ class SchmidtPlugin(IngestPlugin):
             # get items this refers to
             for fkey in d[fkey_field]:
                 item = db.Item.get(id=fkey)
+                if item is None:
+                    continue
 
                 # upsert author instance
                 upsert_get = {
@@ -490,7 +509,7 @@ class SchmidtPlugin(IngestPlugin):
 
     @db_session
     def update_funders(self, db):
-        """Update events based on the lookup table data.
+        """Update funders based on the lookup table data.
 
         Parameters
         ----------
@@ -521,6 +540,8 @@ class SchmidtPlugin(IngestPlugin):
             # get items this refers to
             for fkey in d[fkey_field]:
                 item = db.Item.get(id=fkey)
+                if item is None:
+                    continue
 
                 # upsert funder instance
                 upsert_get = {
@@ -567,7 +588,9 @@ class SchmidtPlugin(IngestPlugin):
         # for each item
         for d in self.item.to_dict(orient="records"):
             event_defined = d["Event category"] != ""
-            item = db.Item[int(d["ID (automatically assigned)"])]
+            item = db.Item.get(id=int(d["ID (automatically assigned)"]))
+            if item is None:
+                continue
             item_defined = item is not None
             if not event_defined or not item_defined:
                 continue
@@ -634,7 +657,7 @@ class SchmidtPlugin(IngestPlugin):
                 cur_item_dict = cur_item_dict + 1
 
                 file_defined = d["PDF Attachments"] != ""
-                item = db.Item[int(d["ID (automatically assigned)"])]
+                item = db.Item.get(id=int(d["ID (automatically assigned)"]))
                 item_defined = item is not None
                 if (
                     not file_defined
