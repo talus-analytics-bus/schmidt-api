@@ -16,3 +16,6 @@ config.ini
 
 # py cache
 __pycache__/
+
+# visual studio code
+.vscode
