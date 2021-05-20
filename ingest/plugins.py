@@ -509,7 +509,7 @@ class SchmidtPlugin(IngestPlugin):
 
     @db_session
     def update_funders(self, db):
-        """Update events based on the lookup table data.
+        """Update funders based on the lookup table data.
 
         Parameters
         ----------
