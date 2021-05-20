@@ -13,3 +13,6 @@ sh
 
 # db config file
 config.ini
+
+# py cache
+__pycache__/
