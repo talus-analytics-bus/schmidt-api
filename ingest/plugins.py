@@ -192,8 +192,30 @@ class SchmidtPlugin(IngestPlugin):
         # list when ingest is complete
         all_upserted = set()
 
+        def reject(d: dict) -> bool:
+            """Return True if the item datum is acceptable to add to the
+            database and False otherwise.
+
+            Args:
+                d (dict): The item datum based on the Airtable record.
+
+            Returns:
+                bool: True if the item datum is acceptable to add to the
+                database and False otherwise.
+            """
+            desc: str = d.get("Description", "").strip()
+            no_desc: bool = desc == ""
+            not_ready: bool = not d.get("Final review", False)
+            if no_desc or not_ready:
+                return True
+            return False
+
         # parse items into instances to write to database
         for d in self.item.to_dict(orient="records"):
+
+            # reject item data if not acceptable
+            if reject(d):
+                continue
 
             if d["Linked Record ID"] != "":
                 for source_id in d["Linked Record ID"]:
