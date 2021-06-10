@@ -38,7 +38,7 @@ pg_dump \
 --port "5432" \
 --username "talus" \
 --dbname $dblive \
--F d -f "$dbliveaws-$now" --verbose;
+-F d -f "$dblive-dev-$now" --verbose;
 cd ../.. && \
 
 # drop local
@@ -59,7 +59,7 @@ pg_restore --host "localhost" \
 --dbname $dblocal \
 --format=d \
 --verbose \
-"$dbliveaws-$now";
+"$dblive-dev-$now";
 
 # announce done
 printf "${bold}\n\nOperation completed successfully.\n\n${normal}";
