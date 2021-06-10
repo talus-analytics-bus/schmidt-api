@@ -1,10 +1,13 @@
 ## 🚀 Quick start
+Written by Mike Van Maele (mvanmaele@talusanalytics.com)
 
 1.  **Clone the AWS database locally to use in development.**
 
-    Get a shell script and database server password from one of the below individuals to clone the Schmidt AWS RDS database locally. It will return data much faster in development than the production database.
+    In the MacOS terminal, clone the current production database by doing
+    ```
+    bash sh/clone-db-schmidt.sh [YOUR_LOCAL_PG_USERNAME] schmidt schmidt-local
+    ```
 
-    - Mike (mvanmaele@talusanalytics.com)
 
 
 2.  **Create a config.ini file.**
@@ -13,10 +16,10 @@
 
     ```
     [DEFAULT]
-    username=mikevanmaele
+    username=[YOUR_LOCAL_PG_USERNAME]
     host=localhost
-    password=
-    database=schmidt
+    password=[YOUR_LOCAL_PG_PASS]
+    database=schmidt-local
     ```
 
 
