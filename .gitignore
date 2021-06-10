@@ -8,8 +8,8 @@
 Pipfile.lock
 Pipfile
 
-# Shell scripts
-sh
+# Backup databases
+backup-*/
 
 # db config file
 config.ini
@@ -19,3 +19,6 @@ __pycache__/
 
 # visual studio code
 .vscode
+
+# virtual env
+venv
