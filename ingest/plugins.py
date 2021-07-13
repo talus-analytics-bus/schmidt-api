@@ -5,6 +5,7 @@ from io import BytesIO
 from os import sys
 from datetime import datetime
 from collections import defaultdict
+from typing import Set
 
 # 3rd party modules
 import boto3
@@ -185,6 +186,9 @@ class SchmidtPlugin(IngestPlugin):
             and i.field not in internal_fields
         )
 
+        # define fields to skip over that are handled specially
+        special_fields: Set[str] = {"items"}
+
         # store link items
         linked_items_by_id = defaultdict(set)
 
@@ -231,6 +235,7 @@ class SchmidtPlugin(IngestPlugin):
             for field_datum in field_data:
                 is_linked = (
                     field_datum.linked_entity_name != field_datum.entity_name
+                    or field_datum.field in special_fields
                 )
                 if is_linked:
                     continue
