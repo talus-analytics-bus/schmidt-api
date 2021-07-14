@@ -14,6 +14,9 @@ backup-*/
 # db config file
 config.ini
 
+# debug scripts
+debug.py
+
 # py cache
 __pycache__/
 
