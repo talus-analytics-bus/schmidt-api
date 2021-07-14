@@ -61,11 +61,6 @@ class SchmidtExportPlugin(ExcelExport):
         self.filters = filters
         self.search_text = search_text
 
-        # Define a sheet settings instance for each tab of the XLSX
-        # If class_name is all, then export policies and plans, otherwise
-        # export whichever is defined in `class_name`
-        export_policies_and_plans = class_name == 'all'
-
         # Bookmarks or filtered data or all data?
         def get_export_type(filters, search_text):
             """Get one-word description of the type of export, inferred from
