@@ -2,15 +2,11 @@
 # standard packages
 import urllib3
 import certifi
-import requests
-import csv
-import json
-from collections import defaultdict
 
 # 3rd party modules
 import boto3
 import pprint
-from pony.orm import db_session, commit, get, select
+from pony.orm import db_session, commit, select
 from pony.orm.core import EntityMeta
 from alive_progress import alive_bar
 
