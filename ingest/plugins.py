@@ -15,7 +15,7 @@ from io import BytesIO
 from os import sys
 from datetime import datetime
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, Set, Type
+from typing import Any, DefaultDict, Dict, List, Set, Type, Union
 
 # 3rd party modules
 import boto3
@@ -928,20 +928,23 @@ class SchmidtPlugin(IngestPlugin):
             print("Deleted.")
 
         # get glossary terms from Airtable
-
-        upserted = set()
         n_inserted = 0
         n_updated = 0
-
         with alive_bar(
             len(self.glossary_dicts), title="Ingesting glossary records"
         ) as bar:
-            for d in self.glossary_dicts:
+            row: dict = None
+            for row in self.glossary_dicts:
                 bar()
+                show: Union[str, bool] = row.get(
+                    "Internal: Show in Excel download?"
+                )
+                if show is not True:
+                    continue
                 new_record = dict(
-                    colname=d.get("Category"),
-                    term=d.get("Name"),
-                    definition=d.get("Definition (in progress)"),
+                    colname=row.get("Category"),
+                    term=row.get("Name"),
+                    definition=row.get("Definition (in progress)"),
                 )
                 action, instance = upsert(
                     db.Glossary,
