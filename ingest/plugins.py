@@ -87,18 +87,9 @@ class SchmidtPlugin(IngestPlugin):
 
     @db_session
     def update_metadata(self, db):
-        """Load data dictionaries from Airtable, and parse and write their
+        """
+        Load data dictionaries from Airtable, and parse and write their
         contents to the database.
-
-        Parameters
-        ----------
-        db : type
-            Description of parameter `db`.
-
-        Returns
-        -------
-        type
-            Description of returned object.
 
         """
         # load data dictionaries from Airtable and store following the
@@ -115,31 +106,35 @@ class SchmidtPlugin(IngestPlugin):
         self.dd_all = pd.concat([self.dd_item])
 
         # process data dictionary dataframes into instances for database
-        to_upsert = list()
-        for d in self.dd_all.to_dict(orient="records"):
-            upsert_set = {
-                "order": d["Order"],
-                "source_name": d["Field"],
-                "display_name": d["Display name"],
-                "colgroup": d["Category"],
-                "definition": d["Definition"],
-                "possible_values": d["Possible values"],
-                "export": d["Export?"],
-                "type": d["Type"],
+        meta_row: dict = None
+        for meta_row in self.dd_all.to_dict(orient="records"):
+            # skip rows that lack a database field name
+            db_field_name: str = meta_row.get("Database field name")
+            if db_field_name in (None, ""):
+                continue
+
+            # define "get" field values for datum
+            upsert_get: dict = {
+                "field": db_field_name,
+                "entity_name": meta_row["Entity name"],
+                "linked_entity_name": meta_row["Database entity"],
+            }
+
+            # define fields to set
+            upsert_set: dict = {
+                "order": meta_row["Order"],
+                "source_name": meta_row["Field"],
+                "display_name": meta_row["Display name"],
+                "colgroup": meta_row["Category"],
+                "definition": meta_row["Definition"],
+                "possible_values": meta_row["Possible values"],
+                "export": meta_row["Export?"],
+                "type": meta_row["Type"],
                 "notes": "",  # NOT IMPLEMENTED,
             }
 
-            # define "get" field values for datum
-            upsert_get = {
-                "field": d["Database field name"],
-                "entity_name": d["Entity name"],
-                "linked_entity_name": d["Database entity"],
-            }
-
-            # write instances to database
-            action, upserted = upsert(
-                cls=db.Metadata, get=upsert_get, set=upsert_set
-            )
+            # upsert instances to database
+            upsert(cls=db.Metadata, get=upsert_get, set=upsert_set)
         print("Metadata updated.")
         return self
 
@@ -274,7 +269,7 @@ class SchmidtPlugin(IngestPlugin):
                                 upsert_set[key] = value
                         else:
                             upsert_tag[key] = value
-            action, upserted = upsert(
+            _action, upserted = upsert(
                 db.Item,
                 get=upsert_get,
                 set=upsert_set,
