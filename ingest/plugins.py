@@ -648,6 +648,11 @@ class SchmidtPlugin(IngestPlugin):
         n_item_dicts = len(item_dicts)
         cur_item_dict = 0
 
+        # scrape first page of text only?
+        SCRAPE_FIRST_PAGE_ONLY: bool = (
+            os.environ.get("SCRAPE_FIRST_PAGE_ONLY", "false") == "true"
+        )
+
         # define progress bar for item update cycle
         print("")
         with alive_bar(n_item_dicts, title="Updating files") as bar:
@@ -736,43 +741,44 @@ class SchmidtPlugin(IngestPlugin):
                                                     BytesIO(file)
                                                 )
 
-                                                # # for debug: get first page only
-                                                # # TODO revert
-                                                # first_page = pdf.pages[0]
-                                                # scraped_text = first_page.extract_text()
+                                                # store scraped text
+                                                scraped_text: str = ""
 
-                                                scraped_text = ""
-                                                for curpage in pdf.pages:
-                                                    page_scraped_text = (
-                                                        curpage.extract_text()
+                                                # for debug: get first
+                                                # page only?
+                                                if SCRAPE_FIRST_PAGE_ONLY:
+                                                    first_page = pdf.pages[0]
+                                                    scraped_text = (
+                                                        first_page.extract_text()
                                                     )
-                                                    if (
-                                                        page_scraped_text
-                                                        is not None
-                                                    ):
-                                                        scraped_text += (
-                                                            page_scraped_text
+                                                else:
+                                                    for curpage in pdf.pages:
+                                                        page_scraped_text = (
+                                                            curpage.extract_text()
                                                         )
+                                                        if (
+                                                            page_scraped_text
+                                                            is not None
+                                                        ):
+                                                            scraped_text += page_scraped_text
                                                 upsert_set[
                                                     "scraped_text"
                                                 ] = scraped_text.replace(
                                                     "\x00", ""
                                                 )
-                                            except Exception as e:
+                                            except Exception:
                                                 pass
-                                                # print(
-                                                #     'File does not appear to be PDF, skipping scraping: ' + file['filename'])
 
                                         if not file_already_in_s3:
                                             # add file to s3
-                                            response = s3.put_object(
+                                            s3.put_object(
                                                 Body=file,
                                                 Bucket=S3_BUCKET_NAME,
                                                 Key=file_key,
                                             )
 
                                             # set to public
-                                            response2 = s3.put_object_acl(
+                                            s3.put_object_acl(
                                                 ACL="public-read",
                                                 Bucket=S3_BUCKET_NAME,
                                                 Key=file_key,
