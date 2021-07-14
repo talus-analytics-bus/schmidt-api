@@ -851,43 +851,6 @@ class SchmidtPlugin(IngestPlugin):
         print("Files updated.")
         return self
 
-    def load_metadata(self):
-        """Retrieve data dictionaries from data source and store in instance.
-
-        Returns
-        -------
-        self
-
-        """
-
-        print("\n\n[0] Connecting to Airtable and fetching tables...")
-        self.client.connect()
-
-        # show every row of data dictionary preview in terminal
-        pd.set_option("display.max_rows", None, "display.max_columns", None)
-
-        # policy data dictionary
-        self.data_dictionary = self.client.worksheet(
-            name="Appendix: Policy data dictionary"
-        ).as_dataframe(view="API ingest")
-
-        # court challenges data dictionary
-        self.data_dictionary_court_challenges = self.client.worksheet(
-            name="Appendix: Court challenges data dictionary"
-        ).as_dataframe()
-
-        # plan data dictionary
-        self.data_dictionary_plans = self.client.worksheet(
-            name="Appendix: Plan data dictionary"
-        ).as_dataframe(view="API ingest")
-
-        # glossary
-        self.glossary = self.client.worksheet(
-            name="Appendix: glossary"
-        ).as_dataframe(view="API ingest")
-
-        return self
-
     @db_session
     def create_metadata(self, db, full_dd):
         """Create metadata instances if they do not exist. If they do exist,
