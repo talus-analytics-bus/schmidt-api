@@ -1,11 +1,21 @@
 """Define project-specific methods for data ingestion."""
 # standard modules
+from api.db_models.models import (
+    CovidTag,
+    CovidTopic,
+    FieldRelationship,
+    GeoSpecificity,
+    KeyTopic,
+    Metadata,
+    Optionset,
+    Tag,
+)
 import os
 from io import BytesIO
 from os import sys
 from datetime import datetime
 from collections import defaultdict
-from typing import Set
+from typing import Any, DefaultDict, Dict, List, Set, Type, Union
 
 # 3rd party modules
 import boto3
@@ -28,6 +38,17 @@ import pandas as pd
 
 # pretty printing: for printing JSON objects legibly
 pp = pprint.PrettyPrinter(indent=4)
+
+# list tags that use the Tag entity
+# TODO define tag fields dynamically in Metadata
+OPTIONSET_CLASS_BY_FIELD: Dict[str, Any] = {
+    "key_topics": KeyTopic,
+    "tags": Tag,
+    "covid_topics": CovidTopic,
+    "covid_tags": CovidTag,
+    "geo_specificity": GeoSpecificity,
+    "field_relationship": FieldRelationship,
+}
 
 # define exported classes
 __all__ = ["SchmidtPlugin"]
@@ -86,7 +107,7 @@ class SchmidtPlugin(IngestPlugin):
         return self
 
     @db_session
-    def update_metadata(self, db):
+    def update_metadata(self, db, delete_old: bool = False):
         """
         Load data dictionaries from Airtable, and parse and write their
         contents to the database.
@@ -105,12 +126,21 @@ class SchmidtPlugin(IngestPlugin):
         # collate data dictionary dataframes into one
         self.dd_all = pd.concat([self.dd_item])
 
+        # if requested, delete first
+        if delete_old:
+            db.Metadata.select().delete()
+            commit()
+
         # process data dictionary dataframes into instances for database
         meta_row: dict = None
         for meta_row in self.dd_all.to_dict(orient="records"):
             # skip rows that lack a database field name
             db_field_name: str = meta_row.get("Database field name")
-            if db_field_name in (None, ""):
+            if db_field_name in (
+                None,
+                "",
+                "related_description",
+            ):
                 continue
 
             # define "get" field values for datum
@@ -143,24 +173,15 @@ class SchmidtPlugin(IngestPlugin):
         """Get Items instance data from Airtable, parse into database records,
         and write to database.
 
-        Parameters
-        ----------
-        db : type
-            Description of parameter `db`.
-
-        Returns
-        -------
-        type
-            Description of returned object.
-
         """
-        print("\nUpdating items...")
-        self.item = self.client.worksheet(
-            name="Schmidt dataset"
-        ).as_dataframe()
 
-        # list tags that use the Tag entity
-        tag_fields = ("key_topics", "tags")
+        # limit number of items?
+        MAX_ITEMS: int = os.environ.get("MAX_ITEMS")
+
+        print("\nUpdating items...")
+        self.items = self.client.worksheet(
+            name="Schmidt dataset"
+        ).as_dataframe(max_records=MAX_ITEMS)
 
         # list tags that are linked entities to be tagged after the fact
         linked_fields = ("funders",)
@@ -173,9 +194,9 @@ class SchmidtPlugin(IngestPlugin):
         )
 
         # get database fields for items to write
-        field_data = select(
+        metadata: List[Metadata] = select(
             i
-            for i in db.Metadata
+            for i in Metadata
             if i.entity_name == "Item"
             and i.field not in linked_fields
             and i.field not in internal_fields
@@ -185,7 +206,7 @@ class SchmidtPlugin(IngestPlugin):
         special_fields: Set[str] = {"items"}
 
         # store link items
-        linked_items_by_id = defaultdict(set)
+        linked_items_by_id: DefaultDict[str, set] = defaultdict(set)
 
         # store upserted items, and delete any in the db that aren't on the
         # list when ingest is complete
@@ -210,24 +231,25 @@ class SchmidtPlugin(IngestPlugin):
             return False
 
         # parse items into instances to write to database
-        for d in self.item.to_dict(orient="records"):
+        raw_item_data: dict = None
+        for raw_item_data in self.items.to_dict(orient="records"):
 
             # reject item data if not acceptable
-            if reject(d):
+            if reject(raw_item_data):
                 continue
 
-            if d["Linked Record ID"] != "":
-                for source_id in d["Linked Record ID"]:
-                    linked_items_by_id[d["ID (automatically assigned)"]].add(
-                        source_id
-                    )
+            if raw_item_data["Linked Record ID"] != "":
+                for source_id in raw_item_data["Linked Record ID"]:
+                    linked_items_by_id[
+                        raw_item_data["ID (automatically assigned)"]
+                    ].add(source_id)
 
             get_keys = "id"
             upsert_get = dict()
-            upsert_set = {"source_id": d["source_id"]}
-            upsert_tag = dict()
+            upsert_set = {"source_id": raw_item_data["source_id"]}
+            upsert_optionset: DefaultDict[str, Set[str]] = defaultdict(set)
 
-            for field_datum in field_data:
+            for field_datum in metadata:
                 is_linked = (
                     field_datum.linked_entity_name != field_datum.entity_name
                     or field_datum.field in special_fields
@@ -237,8 +259,8 @@ class SchmidtPlugin(IngestPlugin):
                 else:
                     key = field_datum.field
                     name = field_datum.source_name
-                    if name in d:
-                        value = d[name]
+                    if name in raw_item_data:
+                        value = raw_item_data[name]
                         # parse dates
                         if field_datum.type == "date":
                             if value != "":
@@ -262,13 +284,16 @@ class SchmidtPlugin(IngestPlugin):
                                 value = False
                             else:
                                 value = None
-                        if key not in tag_fields:
+                        if key not in OPTIONSET_CLASS_BY_FIELD:
                             if key in get_keys:
                                 upsert_get[key] = value
                             else:
                                 upsert_set[key] = value
                         else:
-                            upsert_tag[key] = value
+                            v: str = None
+                            for v in value:
+                                upsert_optionset[key].add(v)
+
             _action, upserted = upsert(
                 db.Item,
                 get=upsert_get,
@@ -287,28 +312,34 @@ class SchmidtPlugin(IngestPlugin):
             commit()
 
             # assign all tag field keys here from upsert_set
-            for field in upsert_tag:
-                upsert_tag_field_vals = (
-                    upsert_tag[field]
-                    if iterable(upsert_tag[field])
-                    else [upsert_tag[field]]
+            optionset_field: str = None
+            for optionset_field in upsert_optionset:
+                OptionsetClass: Type[Optionset] = OPTIONSET_CLASS_BY_FIELD[
+                    optionset_field
+                ]
+                upsert_optionset_field_vals = list(
+                    upsert_optionset[optionset_field]
                 )
-                for tag_name in upsert_tag_field_vals:
-                    action_tag, upserted_tag = upsert(
-                        db.Tag,
-                        get={"name": tag_name, "field": field},
+                for optionset_name in upsert_optionset_field_vals:
+                    _action_optionset, upserted_optionset = upsert(
+                        OptionsetClass,
+                        get={"name": optionset_name},
                         set=dict(),
                     )
-                    getattr(upserted, field).add(upserted_tag)
+                    commit()
+
+                    getattr(upserted, optionset_field).add(upserted_optionset)
                     commit()
 
         # Link related items
-        for a_id, b_ids in linked_items_by_id.items():
-            a = db.Item[a_id]
-            for b_id in b_ids:
-                b = db.Item.get(source_id=b_id)
-                a.items.add(b)
-            commit()
+        link_rel_items: bool = MAX_ITEMS is None
+        if link_rel_items:
+            for a_id, b_ids in linked_items_by_id.items():
+                a = db.Item[a_id]
+                for b_id in b_ids:
+                    b = db.Item.get(source_id=b_id)
+                    a.items.add(b)
+                commit()
 
         # add date type
         define_date_types(db)
@@ -345,9 +376,13 @@ class SchmidtPlugin(IngestPlugin):
             "link",
             "sub_organizations",
         )
-        fields_tag = (
+        fields_optionset = (
             "key_topics",
             "tags",
+            "covid_topics",
+            "covid_tags",
+            "field_relationship",
+            "geo_specificity",
         )
         linked_fields_str = (
             "authors.authoring_organization",
@@ -369,11 +404,13 @@ class SchmidtPlugin(IngestPlugin):
                     if type(value) == list:
                         value = " ".join(value)
                     search_text += value + " "
-                for field in fields_tag:
-                    tag_names = select(tag.name for tag in getattr(i, field))[
-                        :
-                    ][:]
-                    search_text += " - ".join(tag_names) + " "
+                for field in fields_optionset:
+                    optionset_values: List[Optionset] = getattr(i, field)
+                    if optionset_values is not None:
+                        optionset_names = select(
+                            tag.name for tag in optionset_values
+                        )[:][:]
+                        search_text += " - ".join(optionset_names) + " "
 
                 # add linked fields from related entities like authors
                 for field in linked_fields_str:
@@ -413,17 +450,16 @@ class SchmidtPlugin(IngestPlugin):
         print("Deleted.\n")
 
     @db_session
-    def clean_tags(self, db):
-        """Delete tag instances that aren't used"""
-        print("\nDeleting unused tags from database...")
+    def clean_optionset_vals(self, db):
+        """Delete optionset value instances that aren't used"""
+        print("\nCleaning optionset values...")
 
         # delete tags that are not used by any items
-        delete_tags = select(
-            i for i in db.Tag if len(i._key_topics) == 0 and len(i._tags) == 0
-        )
-        delete_tags.delete()
-        commit()
-        print("Tags cleaned.")
+        OptionsetClass: Type[Optionset] = None
+        for OptionsetClass in OPTIONSET_CLASS_BY_FIELD.values():
+            OptionsetClass.delete_unused()
+            commit()
+        print("Optionset values cleaned.")
 
     @db_session
     def update_authors(self, db):
@@ -578,7 +614,7 @@ class SchmidtPlugin(IngestPlugin):
 
         """
         # throw error if items data not loaded
-        if not hasattr(self, "item"):
+        if not hasattr(self, "items"):
             print("[FATAL ERROR] Please `update_items` before other entities.")
             sys.exit(1)
 
@@ -586,8 +622,8 @@ class SchmidtPlugin(IngestPlugin):
         print("\nUpdating events...")
 
         # for each item
-        for d in self.item.to_dict(orient="records"):
-            event_defined = d["Event category"] != ""
+        for d in self.items.to_dict(orient="records"):
+            event_defined = d.get("Event category") not in (None, "")
             item = db.Item.get(id=int(d["ID (automatically assigned)"]))
             if item is None:
                 continue
@@ -634,7 +670,7 @@ class SchmidtPlugin(IngestPlugin):
 
         """
         # throw error if items data not loaded
-        if not hasattr(self, "item"):
+        if not hasattr(self, "items"):
             print("[FATAL ERROR] Please `update_items` before other entities.")
             sys.exit(1)
 
@@ -644,13 +680,18 @@ class SchmidtPlugin(IngestPlugin):
         # define s3 client
         s3 = boto3.client("s3")
 
-        item_dicts = self.item.to_dict(orient="records")
+        item_dicts = self.items.to_dict(orient="records")
         n_item_dicts = len(item_dicts)
         cur_item_dict = 0
 
         # scrape first page of text only?
         SCRAPE_FIRST_PAGE_ONLY: bool = (
             os.environ.get("SCRAPE_FIRST_PAGE_ONLY", "false") == "true"
+        )
+
+        # overwrite PDFs already in S3?
+        OVERWRITE_PDFS: bool = (
+            os.environ.get("OVERWRITE_PDFS", "false") == "true"
         )
 
         # define progress bar for item update cycle
@@ -722,7 +763,7 @@ class SchmidtPlugin(IngestPlugin):
                                     file_key in self.s3_bucket_keys
                                 )
 
-                                if not file_already_in_s3:
+                                if (not file_already_in_s3) or OVERWRITE_PDFS:
                                     # add file to S3 if not already there
                                     file = download_file(
                                         file_url,
@@ -752,15 +793,33 @@ class SchmidtPlugin(IngestPlugin):
                                                         first_page.extract_text()
                                                     )
                                                 else:
+                                                    # only scrape up to a set
+                                                    # limit of characters
+                                                    max_chars: int = 1000
                                                     for curpage in pdf.pages:
-                                                        page_scraped_text = (
-                                                            curpage.extract_text()
-                                                        )
                                                         if (
-                                                            page_scraped_text
-                                                            is not None
+                                                            len(scraped_text)
+                                                            < max_chars
                                                         ):
-                                                            scraped_text += page_scraped_text
+                                                            page_scraped_text = (
+                                                                curpage.extract_text()
+                                                            )
+                                                            if (
+                                                                page_scraped_text
+                                                                is not None
+                                                            ):
+                                                                scraped_text += page_scraped_text
+                                                # trim string
+                                                if (
+                                                    len(scraped_text)
+                                                    > max_chars
+                                                ):
+                                                    scraped_text = (
+                                                        scraped_text[
+                                                            0:max_chars
+                                                        ]
+                                                    )
+
                                                 upsert_set[
                                                     "scraped_text"
                                                 ] = scraped_text.replace(
@@ -789,14 +848,13 @@ class SchmidtPlugin(IngestPlugin):
                                                 "https://schmidt-storage.s3-us-west-1.amazonaws.com/"
                                                 + file_key
                                             )
-                                            # print('Added file to s3: ' + file_key)
 
                         # upsert files
                         upsert_set["has_thumb"] = (
                             upsert_set["source_thumbnail_permalink"]
                             is not None
                         )
-                        action, upserted = upsert(
+                        _action, upserted = upsert(
                             db.File, get=upsert_get, set=upsert_set
                         )
                         commit()
@@ -851,213 +909,6 @@ class SchmidtPlugin(IngestPlugin):
         print("Files updated.")
         return self
 
-    def load_metadata(self):
-        """Retrieve data dictionaries from data source and store in instance.
-
-        Returns
-        -------
-        self
-
-        """
-
-        print("\n\n[0] Connecting to Airtable and fetching tables...")
-        self.client.connect()
-
-        # show every row of data dictionary preview in terminal
-        pd.set_option("display.max_rows", None, "display.max_columns", None)
-
-        # policy data dictionary
-        self.data_dictionary = self.client.worksheet(
-            name="Appendix: Policy data dictionary"
-        ).as_dataframe(view="API ingest")
-
-        # court challenges data dictionary
-        self.data_dictionary_court_challenges = self.client.worksheet(
-            name="Appendix: Court challenges data dictionary"
-        ).as_dataframe()
-
-        # plan data dictionary
-        self.data_dictionary_plans = self.client.worksheet(
-            name="Appendix: Plan data dictionary"
-        ).as_dataframe(view="API ingest")
-
-        # glossary
-        self.glossary = self.client.worksheet(
-            name="Appendix: glossary"
-        ).as_dataframe(view="API ingest")
-
-        return self
-
-    @db_session
-    def create_metadata(self, db, full_dd):
-        """Create metadata instances if they do not exist. If they do exist,
-        update them.
-
-        Parameters
-        ----------
-        db : type
-            Description of parameter `db`.
-
-        Returns
-        -------
-        type
-            Description of returned object.
-
-        """
-        print("\n\n[2] Ingesting metadata from data dictionary...")
-        colgroup = ""
-        upserted = set()
-        n_inserted = 0
-        n_updated = 0
-        db.Metadata.select().delete()
-        commit()
-
-        for i, d in full_dd.iterrows():
-            if d["Category"] != "":
-                colgroup = d["Category"]
-            if d["Database entity"] == "" or d["Database field name"] == "":
-                continue
-            metadatum_attributes = {
-                "ingest_field": d["Ingest field name"],
-                "display_name": d["Field"],
-                "colgroup": colgroup,
-                "definition": d["Definition"],
-                "possible_values": d["Possible values"],
-                "notes": d["Notes"] if not pd.isna(d["Notes"]) else "",
-                "order": d["Order"],
-                "export": d["Export?"] == True,
-            }
-            action, instance = upsert(
-                db.Metadata,
-                {
-                    "field": d["Database field name"],
-                    "entity_name": d["Database entity"],
-                    "class_name": d["Type"],
-                },
-                metadatum_attributes,
-            )
-            if action == "update":
-                n_updated += 1
-            elif action == "insert":
-                n_inserted += 1
-            upserted.add(instance)
-
-        # add extra metadata not in the data dictionary
-        other_metadata = [
-            (
-                {
-                    "field": "loc",
-                    "entity_name": "Place",
-                    "class_name": "Policy",
-                },
-                {
-                    "ingest_field": "loc",
-                    "display_name": "Country / Specific location",
-                    "colgroup": "",
-                    "definition": "The location affected by the policy",
-                    "possible_values": "Any text",
-                    "notes": "",
-                    "order": 0,
-                    "export": False,
-                },
-            ),
-            (
-                {"field": "loc", "entity_name": "Place", "class_name": "Plan"},
-                {
-                    "ingest_field": "loc",
-                    "display_name": "Country / Specific location",
-                    "colgroup": "",
-                    "definition": "The location affected by the plan",
-                    "possible_values": "Any text",
-                    "notes": "",
-                    "order": 0,
-                    "export": False,
-                },
-            ),
-            (
-                {
-                    "field": "source_id",
-                    "entity_name": "Policy",
-                    "class_name": "Policy",
-                },
-                {
-                    "ingest_field": "source_id",
-                    "display_name": "Source ID",
-                    "colgroup": "",
-                    "definition": "The unique ID of the record in the original dataset",
-                    "possible_values": "Any text",
-                    "order": 0,
-                    "notes": "",
-                    "export": False,
-                },
-            ),
-            (
-                {
-                    "field": "source_id",
-                    "entity_name": "Plan",
-                    "class_name": "Plan",
-                },
-                {
-                    "ingest_field": "source_id",
-                    "display_name": "Source ID",
-                    "colgroup": "",
-                    "definition": "The unique ID of the record in the original dataset",
-                    "possible_values": "Any text",
-                    "order": 0,
-                    "notes": "",
-                    "export": False,
-                },
-            ),
-            (
-                {
-                    "field": "source_id",
-                    "entity_name": "Court_Challenge",
-                    "class_name": "Court_Challenge",
-                },
-                {
-                    "ingest_field": "source_id",
-                    "display_name": "Source ID",
-                    "colgroup": "",
-                    "definition": "The unique ID of the record in the original dataset",
-                    "possible_values": "Any text",
-                    "order": 0,
-                    "notes": "",
-                    "export": False,
-                },
-            ),
-            (
-                {
-                    "field": "date_end_actual_or_anticipated",
-                    "entity_name": "Policy",
-                    "class_name": "Policy",
-                },
-                {
-                    "ingest_field": "",
-                    "display_name": "Policy end date",
-                    "colgroup": "",
-                    "definition": "The date on which the policy or law will (or did) end",
-                    "possible_values": "Any date",
-                    "order": 0,
-                    "notes": "",
-                    "export": False,
-                },
-            ),
-        ]
-        for get, d in other_metadata:
-            action, instance = upsert(db.Metadata, get, d)
-            if action == "update":
-                n_updated += 1
-            elif action == "insert":
-                n_inserted += 1
-            upserted.add(instance)
-
-        # delete all records in table but not in ingest dataset
-        n_deleted = db.Metadata.delete_2(upserted)
-        commit()
-        print("Inserted: " + str(n_inserted))
-        print("Updated: " + str(n_updated))
-        print("Deleted: " + str(n_deleted))
-
     @db_session
     def update_glossary(self, db, delete_old):
         """Create glossary instances, deleting existing."""
@@ -1077,20 +928,23 @@ class SchmidtPlugin(IngestPlugin):
             print("Deleted.")
 
         # get glossary terms from Airtable
-
-        upserted = set()
         n_inserted = 0
         n_updated = 0
-
         with alive_bar(
             len(self.glossary_dicts), title="Ingesting glossary records"
         ) as bar:
-            for d in self.glossary_dicts:
+            row: dict = None
+            for row in self.glossary_dicts:
                 bar()
+                show: Union[str, bool] = row.get(
+                    "Internal: Show in Excel download?"
+                )
+                if show is not True:
+                    continue
                 new_record = dict(
-                    colname=d.get("Category"),
-                    term=d.get("Name"),
-                    definition=d.get("Definition (in progress)"),
+                    colname=row.get("Category"),
+                    term=row.get("Name"),
+                    definition=row.get("Definition (in progress)"),
                 )
                 action, instance = upsert(
                     db.Glossary,
