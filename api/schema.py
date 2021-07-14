@@ -1023,10 +1023,6 @@ def export(filters: dict = None, search_text: str = None):
         The filters to apply.
 
     """
-    media_type = (
-        "application/"
-        + "vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
 
     # Create Excel export file
     export_instance = SchmidtExportPlugin(
@@ -1035,7 +1031,6 @@ def export(filters: dict = None, search_text: str = None):
     content = export_instance.build()
 
     # return the file
-    today = date.today()
     attachment_filename = f"""Health Security Net - Data Download.xlsx"""
 
     return {
