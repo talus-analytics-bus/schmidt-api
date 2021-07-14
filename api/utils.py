@@ -22,46 +22,46 @@ from .db_models import db
 pp = pprint.PrettyPrinter(indent=4)
 
 only = {
-    'Item': [
-        'id',
-        'title',
-        'description',
-        'type_of_record',
-        'date',
-        'date_type',
-        'funders',
-        'authors',
-        'events',
-        'files',
-        'key_topics',
-        'authoring_organization_has_governance_authority',
-        'link',
-        'exclude_pdf_from_site'
+    "Item": [
+        "id",
+        "title",
+        "description",
+        "type_of_record",
+        "date",
+        "date_type",
+        "funders",
+        "authors",
+        "events",
+        "files",
+        "key_topics",
+        "authoring_organization_has_governance_authority",
+        "link",
+        "exclude_pdf_from_site",
     ],
-    'File': [
-        'id',
-        'num_bytes',
-        'filename',
-        's3_filename',
-        'has_thumb',
+    "File": [
+        "id",
+        "num_bytes",
+        "filename",
+        "s3_filename",
+        "has_thumb",
     ],
-    'Author': [
-        'id',
-        'authoring_organization',
-        'type_of_authoring_organization',
-        'if_national_country_of_authoring_org',
-        'if_national_iso2_of_authoring_org',
-        'acronym',
+    "Author": [
+        "id",
+        "authoring_organization",
+        "type_of_authoring_organization",
+        "if_national_country_of_authoring_org",
+        "if_national_iso2_of_authoring_org",
+        "acronym",
     ],
-    'Funder': [
-        'id',
-        'name',
+    "Funder": [
+        "id",
+        "name",
     ],
-    'Event': [
-        'id',
-        'name',
+    "Event": [
+        "id",
+        "name",
     ],
-    'Tag': 'name'
+    "Tag": "name",
 }
 
 
@@ -83,24 +83,24 @@ def jsonify_custom(obj):
         return list(obj)
         raise TypeError
     elif isinstance(obj, db.File):
-        return obj.to_dict(only=only['File'])
+        return obj.to_dict(only=only["File"])
     elif isinstance(obj, db.Author):
-        return obj.to_dict(only=only['Author'])
+        return obj.to_dict(only=only["Author"])
     elif isinstance(obj, db.Funder):
-        return obj.to_dict(only=only['Funder'])
+        return obj.to_dict(only=only["Funder"])
     elif isinstance(obj, db.Event):
-        return obj.to_dict(only=only['Event'])
+        return obj.to_dict(only=only["Event"])
     elif isinstance(obj, db.Tag):
-        return getattr(obj, only['Tag'])
+        return getattr(obj, only["Tag"])
     elif isinstance(obj, db.Item):
         return obj.to_dict(
-            only=only['Item'],
+            only=only["Item"],
             with_collections=True,
             related_objects=True,
         )
     elif isinstance(obj, date):
         return str(obj)
-    elif type(obj).__name__ == 'TagSet':
+    elif type(obj).__name__ == "TagSet":
         return "; ".join([d.name for d in obj])
     else:
         print(obj)
@@ -126,7 +126,7 @@ def get_str_from_datetime(dt, t_res, strf_str):
 
     """
     dt_utc = dt.astimezone(pytz.utc)
-    if t_res == 'yearly':
+    if t_res == "yearly":
         return str(dt_utc.year)
     else:
         return dt_utc.strftime(strf_str)
@@ -173,7 +173,7 @@ def passes_filters(instance, filters):
 
 def is_error(d):
     # does this dict represent an error?
-    return d.get('is_error', False)
+    return d.get("is_error", False)
 
 
 def format_response(func):
@@ -207,15 +207,18 @@ def format_response(func):
             else:
                 formattedData = unformattedData[:]
             results = {
-                "data": formattedData, "error": False, "message": "Success"
+                "data": formattedData,
+                "error": False,
+                "message": "Success",
             }
         except Exception as e:
             exc = traceback.format_exc()
             logging.error(exc)
             results = {
-                "data": None, "error": True,
-                "message": e.__class__.__name__ + ': ' + e.args[0],
-                "traceback": exc
+                "data": None,
+                "error": True,
+                "message": e.__class__.__name__ + ": " + e.args[0],
+                "traceback": exc,
             }
             status_code = 500
 
@@ -236,6 +239,7 @@ def jsonify_response(func):
     are converted to dicts per the rules in `jsonify_custom` above.
 
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Load unformatted data from prior function return statement.
@@ -252,9 +256,10 @@ def jsonify_response(func):
 class DefaultOrderedDict(OrderedDict):
     # Source: http://stackoverflow.com/a/6190500/562769
     def __init__(self, default_factory=None, *a, **kw):
-        if (default_factory is not None and
-                not isinstance(default_factory, Callable)):
-            raise TypeError('first argument must be callable')
+        if default_factory is not None and not isinstance(
+            default_factory, Callable
+        ):
+            raise TypeError("first argument must be callable")
         OrderedDict.__init__(self, *a, **kw)
         self.default_factory = default_factory
 
@@ -274,7 +279,7 @@ class DefaultOrderedDict(OrderedDict):
         if self.default_factory is None:
             args = tuple()
         else:
-            args = self.default_factory,
+            args = (self.default_factory,)
         return type(self), args, None, None, self.items()
 
     def copy(self):
@@ -285,9 +290,11 @@ class DefaultOrderedDict(OrderedDict):
 
     def __deepcopy__(self, memo):
         import copy
-        return type(self)(self.default_factory,
-                          copy.deepcopy(self.items()))
+
+        return type(self)(self.default_factory, copy.deepcopy(self.items()))
 
     def __repr__(self):
-        return 'OrderedDefaultDict(%s, %s)' % (self.default_factory,
-                                               OrderedDict.__repr__(self))
+        return "OrderedDefaultDict(%s, %s)" % (
+            self.default_factory,
+            OrderedDict.__repr__(self),
+        )
