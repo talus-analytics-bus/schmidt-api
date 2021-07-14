@@ -7,6 +7,8 @@ from datetime import date
 
 # Third party libraries
 from pony.orm import PrimaryKey, Required, Optional, Set
+from pony.orm.core import db_session, select
+from pony.utils.utils import count
 from . import db
 
 
@@ -21,7 +23,7 @@ class Item(db.Entity):
     date = Optional(date, nullable=True)
     date_type = Optional(int, nullable=True)
     type_of_record = Optional(str)
-    key_topics = Set("Tag")
+    key_topics = Set("KeyTopic")
     title = Optional(str, sql_default="'Untitled'", nullable=True)
     description = Optional(str)
     sub_organizations = Optional(str)
@@ -37,6 +39,13 @@ class Item(db.Entity):
     source_id = Optional(str)
     tags = Set("Tag")
     exclude_pdf_from_site = Required(bool, default=False)
+
+    # COVID expansion data fields
+    is_covid_commission_doc = Required(bool, default=False)
+    field_relationship = Optional("FieldRelationship")
+    geo_specificity = Optional("GeoSpecificity")
+    covid_topics = Set("CovidTopic")
+    covid_tags = Set("CovidTag")
 
     # Relationships
     authors = Set("Author", table="authors_to_items")
@@ -151,18 +160,63 @@ class Glossary(db.Entity):
     definition = Required(str)
 
 
-class Tag(db.Entity):
-    """Tags for single and multiselects."""
+class Optionset(db.Entity):
+    """Optionset values for tags, topics, etc."""
 
-    _table_ = "tag"
-
-    # Attributes
+    _table_ = "optionset"
     id = PrimaryKey(int, auto=True)
     name = Required(str)
-    field = Required(str)
 
-    # Relationships
-    _key_topics = Set(
-        "Item", reverse="key_topics", table="key_topics_to_items"
-    )
-    _tags = Set("Item", reverse="tags", table="tags_to_items")
+    # Helper methods
+    @classmethod
+    @db_session
+    def delete_unused(self):
+        print(f"""Deleting unused instances of {self.__name__}...""")
+        select(i for i in self if count(i._items) == 0).delete()
+        print("Deleted.")
+
+    # Overrides
+    def __str__(self):
+        return self.name
+
+
+class KeyTopic(Optionset):
+    """Key topic optionset values."""
+
+    # Relationships: Items
+    _items = Set("Item", reverse="key_topics", table="key_topics_to_items")
+
+
+class CovidTopic(Optionset):
+    """COVID topic optionset values."""
+
+    # Relationships: Items
+    _items = Set("Item", reverse="covid_topics", table="covid_topics_to_items")
+
+
+class Tag(Optionset):
+    """Tag optionset values."""
+
+    # Relationships: Items
+    _items = Set("Item", reverse="tags", table="tags_to_items")
+
+
+class CovidTag(Optionset):
+    """COVID tag optionset values."""
+
+    # Relationships: Items
+    _items = Set("Item", reverse="covid_tags", table="covid_tags_to_items")
+
+
+class GeoSpecificity(Optionset):
+    """Geographic specificity optionset values."""
+
+    # Relationships: Items
+    _items = Set("Item", reverse="geo_specificity")
+
+
+class FieldRelationship(Optionset):
+    """Field relationship optionset values."""
+
+    # Relationships: Items
+    _items = Set("Item", reverse="field_relationship")

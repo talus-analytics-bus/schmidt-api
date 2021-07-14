@@ -15,23 +15,23 @@ pp = pprint.PrettyPrinter(indent=4)
 
 # define S3 client used for adding / checking for files in the S3
 # storage bucket
-S3_BUCKET_NAME = 'schmidt-storage'
+S3_BUCKET_NAME = "schmidt-storage"
 
 # define colors for printing colorized terminal text
 
 
 class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
 
 
-special_fields = ('home_rule', 'dillons_rule')
+special_fields = ("home_rule", "dillons_rule")
 
 
 def find_all(i, filter_func):
@@ -51,11 +51,7 @@ def find_all(i, filter_func):
         Description of returned object.
 
     """
-    return list(
-        filter(
-            filter_func, i
-        )
-    )
+    return list(filter(filter_func, i))
 
 
 @db_session
@@ -82,6 +78,7 @@ def upsert(cls, get: dict, set: dict = None, skip: list = []):
         Description of returned object.
 
     """
+
     def conv(value, x):
         """Convert value to string, parsing bools specially.
 
@@ -101,7 +98,7 @@ def upsert(cls, get: dict, set: dict = None, skip: list = []):
         if type(value) == bool:
             if x == True or x == False:
                 return x
-            if x == '':
+            if x == "":
                 return False
             else:
                 return None
@@ -115,18 +112,19 @@ def upsert(cls, get: dict, set: dict = None, skip: list = []):
 
     # does the object exist
     assert isinstance(
-        cls, EntityMeta), "{cls} is not a database entity".format(cls=cls)
+        cls, EntityMeta
+    ), "{cls} is not a database entity".format(cls=cls)
 
     # if no set dictionary has been specified
     set = set or {}
 
     if not cls.exists(**get):
         # make new object
-        return ('insert', cls(**set, **get))
+        return ("insert", cls(**set, **get))
     else:
         # get the existing object
         obj = cls.get(**get)
-        action = 'none'
+        action = "none"
         for key, value in set.items():
             if key in skip:
                 continue
@@ -136,16 +134,17 @@ def upsert(cls, get: dict, set: dict = None, skip: list = []):
             db_value_str = str(conv(db_value, db_value)).strip()
             upsert_value = value
             upsert_value_str = str(conv(db_value, upsert_value)).strip()
-            true_update = upsert_value_str != db_value_str \
-                and upsert_value != db_value
+            true_update = (
+                upsert_value_str != db_value_str and upsert_value != db_value
+            )
 
             if true_update:
-                action = 'update'
+                action = "update"
 
             # special cases
             if key in special_fields:
                 cur_val = getattr(obj, key)
-                if cur_val != '' and cur_val is not None:
+                if cur_val != "" and cur_val is not None:
                     continue
             obj.__setattr__(key, value)
 
@@ -154,7 +153,10 @@ def upsert(cls, get: dict, set: dict = None, skip: list = []):
 
 
 def download_file(
-    download_url: str, fn: str = None, write_path: str = None, as_object: bool = True
+    download_url: str,
+    fn: str = None,
+    write_path: str = None,
+    as_object: bool = True,
 ):
     """Download the PDF at the specified URL and either save it to disk or
     return it as a byte stream.
@@ -177,22 +179,24 @@ def download_file(
 
     """
     http = urllib3.PoolManager(
-        cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
-    user_agent = 'Mozilla/5.0'
+        cert_reqs="CERT_REQUIRED", ca_certs=certifi.where()
+    )
+    user_agent = "Mozilla/5.0"
     try:
-        response = http.request('GET', download_url, headers={
-                                'User-Agent': user_agent})
+        response = http.request(
+            "GET", download_url, headers={"User-Agent": user_agent}
+        )
         if response is not None and response.data is not None:
             if as_object:
                 return response.data
             else:
-                with open(write_path + fn, 'wb') as out:
+                with open(write_path + fn, "wb") as out:
                     out.write(response.data)
                 return True
     except Exception as e:
         return None
     else:
-        print('Error when downloading PDF (404)')
+        print("Error when downloading PDF (404)")
         return False
 
 
@@ -210,12 +214,10 @@ def iterable(obj):
 
 
 def str_to_bool(x):
-    """Convert yes/no val `x` to True/False, or None otherwise.
-
-    """
-    if x == 'Yes':
+    """Convert yes/no val `x` to True/False, or None otherwise."""
+    if x == "Yes":
         return True
-    elif x == 'No':
+    elif x == "No":
         return False
     else:
         return None
@@ -235,7 +237,7 @@ def get_s3_bucket_keys(s3_bucket_name: str):
         Description of returned object.
 
     """
-    s3 = boto3.client('s3')
+    s3 = boto3.client("s3")
 
     nextContinuationToken = None
     keys = list()
@@ -260,24 +262,25 @@ def get_s3_bucket_keys(s3_bucket_name: str):
 
         # set continuation key if it is provided in the response,
         # otherwise do not since it means all keys have been returned
-        if 'NextContinuationToken' in response:
-            nextContinuationToken = response['NextContinuationToken']
+        if "NextContinuationToken" in response:
+            nextContinuationToken = response["NextContinuationToken"]
         else:
             nextContinuationToken = None
 
         # for each response object, extract the key and add it to the
         # full list
-        if 'KeyCount' in response and response['KeyCount'] == 0:
+        if "KeyCount" in response and response["KeyCount"] == 0:
             return list()
         else:
-            for d in response['Contents']:
-                keys.append(d['Key'])
+            for d in response["Contents"]:
+                keys.append(d["Key"])
 
             # are there more keys to pull from the bucket?
             more_keys = nextContinuationToken is not None
 
     # return master list of all bucket keys
     return keys
+
 
 # define date type data field in model `Item` based on internal
 # research notes about date precision
@@ -295,12 +298,15 @@ def define_date_types(db):
     items_by_date_type = select(
         (
             i,
-            'MONTH' in i.internal_research_note,
-            'YEAR' in i.internal_research_note
-        ) for i in db.Item
+            "MONTH" in i.internal_research_note,
+            "YEAR" in i.internal_research_note,
+        )
+        for i in db.Item
     )
 
-    with alive_bar(len(items_by_date_type), title="Assigning date types") as bar:
+    with alive_bar(
+        len(items_by_date_type), title="Assigning date types"
+    ) as bar:
         for item, month_only, year_only in items_by_date_type:
             bar()
             if item.date is None:

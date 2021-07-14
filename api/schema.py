@@ -19,7 +19,7 @@ from pony.orm import select, db_session, raw_sql, count, desc, coalesce
 from .db_models import db
 from . import search
 from .export import SchmidtExportPlugin
-from .utils import jsonify_response, DefaultOrderedDict
+from .utils import is_listlike, jsonify_response, DefaultOrderedDict
 
 # pretty printing: for printing JSON objects legibly
 pp = pprint.PrettyPrinter(indent=4)
@@ -27,7 +27,7 @@ s3 = boto3.client("s3")
 
 
 def cached(func):
-    """ Caching """
+    """Caching"""
     cache = {}
 
     @functools.wraps(func)
@@ -46,7 +46,7 @@ def cached(func):
 
 @db_session
 def cached_items(func):
-    """ Caching for PonyORM item instances """
+    """Caching for PonyORM item instances"""
     cache = {}
 
     @functools.wraps(func)
@@ -142,7 +142,7 @@ def get_item(
             related_directly = select(
                 i
                 for i in db.Item
-                for tag in db.Tag
+                for tag in db.KeyTopic
                 if i in item.items and i != item
             )
 
@@ -155,7 +155,7 @@ def get_item(
             related_by_topic = select(
                 i
                 for i in db.Item
-                for tag in db.Tag
+                for tag in db.KeyTopic
                 if tag in item.key_topics
                 and tag in i.key_topics
                 and i != item
@@ -514,7 +514,7 @@ def apply_filters_to_items(items, filters: dict = {}, search_text: str = None):
                 i_filtered
                 for i_filtered in items
                 for j_topic in i_filtered.key_topics
-                if j_topic.name in allowed_values and j_topic.field == field
+                if j_topic.name in allowed_values
             ).prefetch(
                 db.Item.key_topics,
                 db.Item.funders,
@@ -530,7 +530,6 @@ def apply_filters_to_items(items, filters: dict = {}, search_text: str = None):
             field_arr = field.split(".")
             entity_name = field_arr[0]
             linked_field = field_arr[1]
-            entity = getattr(db, entity_name.capitalize())
             if entity_name == "author" and linked_field == "id":
                 items = select(
                     i_linked_author
@@ -1106,6 +1105,8 @@ def assign_field_value_to_export_row(row, d, field):
                     return val_tmp.strftime("%Y")
                 elif d.date_type == 0:
                     return val_tmp.strftime("%b %d, %Y")
+        elif is_listlike(val_tmp):
+            return "; ".join([str(v) for v in val_tmp])
         else:
             return val_tmp if val_tmp is not None else ""
 
@@ -1145,7 +1146,6 @@ def get_export_data(filters: dict = None, search_text: str = None):
     ).order_by(db.Metadata.order)
 
     # get items to be exported
-    ids = [] if "id" not in filters else filters["id"]
     order_field = "date"
     items = select(i for i in db.Item).order_by(
         raw_sql(f"""i.{order_field} DESC NULLS LAST""")

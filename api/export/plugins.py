@@ -331,14 +331,6 @@ class SchmidtExportPlugin(ExcelExport):
         # init
         rows = list()
 
-        def iterable(obj):
-            try:
-                iter(obj)
-            except Exception:
-                return False
-            else:
-                return True
-
         # for each row
         for d in data:
 

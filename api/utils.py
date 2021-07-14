@@ -1,6 +1,8 @@
 # Standard libraries
 import functools
 import json
+from typing import Any
+from pony.orm.ormtypes import TrackedArray
 import pytz
 import traceback
 import logging
@@ -11,7 +13,7 @@ from datetime import date
 import pprint
 import flask
 from flask import Response
-from pony.orm.core import QueryResult, Set
+from pony.orm.core import Multiset, QueryResult, Set, SetInstance
 from werkzeug.exceptions import NotFound
 
 # Local libraries
@@ -61,7 +63,7 @@ only = {
         "id",
         "name",
     ],
-    "Tag": "name",
+    "Optionset": "name",
 }
 
 
@@ -90,8 +92,8 @@ def jsonify_custom(obj):
         return obj.to_dict(only=only["Funder"])
     elif isinstance(obj, db.Event):
         return obj.to_dict(only=only["Event"])
-    elif isinstance(obj, db.Tag):
-        return getattr(obj, only["Tag"])
+    elif isinstance(obj, db.Optionset):
+        return getattr(obj, only["Optionset"])
     elif isinstance(obj, db.Item):
         return obj.to_dict(
             only=only["Item"],
@@ -298,3 +300,18 @@ class DefaultOrderedDict(OrderedDict):
             self.default_factory,
             OrderedDict.__repr__(self),
         )
+
+
+def is_listlike(obj: Any) -> bool:
+    """Returns True if the object is listlike, False otherwise.
+
+    Args:
+        obj (Any): Any object
+
+    Returns:
+        bool: True if the object is listlike, False otherwise.
+    """
+    obj_type: Any = type(obj)
+    return (obj_type in (set, list)) or issubclass(
+        obj_type, (Multiset, TrackedArray, SetInstance)
+    )
