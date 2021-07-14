@@ -1,7 +1,4 @@
 """Define data sources for ingesting data into databases"""
-# standard packages
-import os
-
 # 3rd party packages for AirtableSource
 from airtable import Airtable
 import pprint
