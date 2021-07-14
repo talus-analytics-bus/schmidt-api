@@ -5,6 +5,7 @@ from io import BytesIO
 from os import sys
 from datetime import datetime
 from collections import defaultdict
+from typing import Set
 
 # 3rd party modules
 import boto3
@@ -86,18 +87,9 @@ class SchmidtPlugin(IngestPlugin):
 
     @db_session
     def update_metadata(self, db):
-        """Load data dictionaries from Airtable, and parse and write their
+        """
+        Load data dictionaries from Airtable, and parse and write their
         contents to the database.
-
-        Parameters
-        ----------
-        db : type
-            Description of parameter `db`.
-
-        Returns
-        -------
-        type
-            Description of returned object.
 
         """
         # load data dictionaries from Airtable and store following the
@@ -114,31 +106,35 @@ class SchmidtPlugin(IngestPlugin):
         self.dd_all = pd.concat([self.dd_item])
 
         # process data dictionary dataframes into instances for database
-        to_upsert = list()
-        for d in self.dd_all.to_dict(orient="records"):
-            upsert_set = {
-                "order": d["Order"],
-                "source_name": d["Field"],
-                "display_name": d["Display name"],
-                "colgroup": d["Category"],
-                "definition": d["Definition"],
-                "possible_values": d["Possible values"],
-                "export": d["Export?"],
-                "type": d["Type"],
+        meta_row: dict = None
+        for meta_row in self.dd_all.to_dict(orient="records"):
+            # skip rows that lack a database field name
+            db_field_name: str = meta_row.get("Database field name")
+            if db_field_name in (None, ""):
+                continue
+
+            # define "get" field values for datum
+            upsert_get: dict = {
+                "field": db_field_name,
+                "entity_name": meta_row["Entity name"],
+                "linked_entity_name": meta_row["Database entity"],
+            }
+
+            # define fields to set
+            upsert_set: dict = {
+                "order": meta_row["Order"],
+                "source_name": meta_row["Field"],
+                "display_name": meta_row["Display name"],
+                "colgroup": meta_row["Category"],
+                "definition": meta_row["Definition"],
+                "possible_values": meta_row["Possible values"],
+                "export": meta_row["Export?"],
+                "type": meta_row["Type"],
                 "notes": "",  # NOT IMPLEMENTED,
             }
 
-            # define "get" field values for datum
-            upsert_get = {
-                "field": d["Database field name"],
-                "entity_name": d["Entity name"],
-                "linked_entity_name": d["Database entity"],
-            }
-
-            # write instances to database
-            action, upserted = upsert(
-                cls=db.Metadata, get=upsert_get, set=upsert_set
-            )
+            # upsert instances to database
+            upsert(cls=db.Metadata, get=upsert_get, set=upsert_set)
         print("Metadata updated.")
         return self
 
@@ -184,6 +180,9 @@ class SchmidtPlugin(IngestPlugin):
             and i.field not in linked_fields
             and i.field not in internal_fields
         )
+
+        # define fields to skip over that are handled specially
+        special_fields: Set[str] = {"items"}
 
         # store link items
         linked_items_by_id = defaultdict(set)
@@ -231,6 +230,7 @@ class SchmidtPlugin(IngestPlugin):
             for field_datum in field_data:
                 is_linked = (
                     field_datum.linked_entity_name != field_datum.entity_name
+                    or field_datum.field in special_fields
                 )
                 if is_linked:
                     continue
@@ -269,7 +269,7 @@ class SchmidtPlugin(IngestPlugin):
                                 upsert_set[key] = value
                         else:
                             upsert_tag[key] = value
-            action, upserted = upsert(
+            _action, upserted = upsert(
                 db.Item,
                 get=upsert_get,
                 set=upsert_set,
@@ -648,6 +648,11 @@ class SchmidtPlugin(IngestPlugin):
         n_item_dicts = len(item_dicts)
         cur_item_dict = 0
 
+        # scrape first page of text only?
+        SCRAPE_FIRST_PAGE_ONLY: bool = (
+            os.environ.get("SCRAPE_FIRST_PAGE_ONLY", "false") == "true"
+        )
+
         # define progress bar for item update cycle
         print("")
         with alive_bar(n_item_dicts, title="Updating files") as bar:
@@ -736,43 +741,44 @@ class SchmidtPlugin(IngestPlugin):
                                                     BytesIO(file)
                                                 )
 
-                                                # # for debug: get first page only
-                                                # # TODO revert
-                                                # first_page = pdf.pages[0]
-                                                # scraped_text = first_page.extract_text()
+                                                # store scraped text
+                                                scraped_text: str = ""
 
-                                                scraped_text = ""
-                                                for curpage in pdf.pages:
-                                                    page_scraped_text = (
-                                                        curpage.extract_text()
+                                                # for debug: get first
+                                                # page only?
+                                                if SCRAPE_FIRST_PAGE_ONLY:
+                                                    first_page = pdf.pages[0]
+                                                    scraped_text = (
+                                                        first_page.extract_text()
                                                     )
-                                                    if (
-                                                        page_scraped_text
-                                                        is not None
-                                                    ):
-                                                        scraped_text += (
-                                                            page_scraped_text
+                                                else:
+                                                    for curpage in pdf.pages:
+                                                        page_scraped_text = (
+                                                            curpage.extract_text()
                                                         )
+                                                        if (
+                                                            page_scraped_text
+                                                            is not None
+                                                        ):
+                                                            scraped_text += page_scraped_text
                                                 upsert_set[
                                                     "scraped_text"
                                                 ] = scraped_text.replace(
                                                     "\x00", ""
                                                 )
-                                            except Exception as e:
+                                            except Exception:
                                                 pass
-                                                # print(
-                                                #     'File does not appear to be PDF, skipping scraping: ' + file['filename'])
 
                                         if not file_already_in_s3:
                                             # add file to s3
-                                            response = s3.put_object(
+                                            s3.put_object(
                                                 Body=file,
                                                 Bucket=S3_BUCKET_NAME,
                                                 Key=file_key,
                                             )
 
                                             # set to public
-                                            response2 = s3.put_object_acl(
+                                            s3.put_object_acl(
                                                 ACL="public-read",
                                                 Bucket=S3_BUCKET_NAME,
                                                 Key=file_key,

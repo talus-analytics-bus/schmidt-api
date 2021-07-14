@@ -22,3 +22,6 @@ __pycache__/
 
 # virtual env
 venv
+
+# local user files
+local/
