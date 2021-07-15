@@ -1,7 +1,6 @@
 #!/bin/bash
 ##
 # Update an RDS database using a local database.
-# 
 ##
 
 programname=$0
