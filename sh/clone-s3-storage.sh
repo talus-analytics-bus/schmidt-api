@@ -2,6 +2,7 @@
 ##
 # Create backup of all files in Health Security Net S3 storage bucket.
 ##
+
 now=$(date)
 cd sh; 
 mkdir backup-s3-storage; 

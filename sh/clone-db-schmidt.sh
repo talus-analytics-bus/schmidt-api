@@ -1,6 +1,10 @@
+#!/bin/bash
+##
 # Clone a AWS RDS database locally for the Health Security Net (aka. 
 # Schmidt) project
+#
 # Arguments: [username] [aws_db_name] [local_db_name]
+##
 
 bold=$(tput bold)
 normal=$(tput sgr0)
