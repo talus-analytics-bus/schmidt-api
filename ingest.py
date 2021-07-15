@@ -19,6 +19,7 @@ if __name__ == "__main__":
 
     # update various entity instances
     client.clear_records(db)
+    client.do_qaqc()
     client.update_metadata(db, delete_old=True)
     client.update_glossary(db, delete_old=True)
     client.update_items(db, delete_old=True)

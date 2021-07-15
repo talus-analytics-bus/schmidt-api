@@ -107,6 +107,11 @@ class SchmidtPlugin(IngestPlugin):
         return self
 
     @db_session
+    def do_qaqc(self):
+        # qa/qc authors
+        self.__qaqc_authors()
+
+    @db_session
     def update_metadata(self, db, delete_old: bool = False):
         """
         Load data dictionaries from Airtable, and parse and write their
@@ -463,27 +468,17 @@ class SchmidtPlugin(IngestPlugin):
 
     @db_session
     def update_authors(self, db):
-        """Update authors based on the lookup table There can be multiple
+        """
+        Update authors based on the lookup table. There can be multiple
         authors for a single item.
-
-        Parameters
-        ----------
-        db : type
-            Description of parameter `db`.
-
-        Returns
-        -------
-        type
-            Description of returned object.
 
         """
         # update authors
         print("\nUpdating authors...")
 
-        # get list of authors from lookup table
-        self.author = self.client.worksheet(
-            name="Lookup: Publishing Org"
-        ).as_dataframe()
+        # load list of authors from lookup table, if not yet loaded
+        if not hasattr(self, "author"):
+            self.__load_authors()
 
         # define foreign key field
         fkey_field = "Item IDs"
@@ -542,6 +537,12 @@ class SchmidtPlugin(IngestPlugin):
         commit()
         print("Authors updated.")
         return self
+
+    def __load_authors(self):
+        """Load authors from Airtable."""
+        self.author = self.client.worksheet(
+            name="Lookup: Publishing Org"
+        ).as_dataframe()
 
     @db_session
     def update_funders(self, db):
@@ -992,3 +993,57 @@ class SchmidtPlugin(IngestPlugin):
         # TODO
 
         return valid
+
+    def __qaqc_authors(self) -> None:
+        """Performs assertions for authors data frame.
+
+        Args:
+            author_df (pd.DataFrame): The authors data frame.
+        """
+
+        if not hasattr(self, "author"):
+            self.__load_authors()
+
+        # detect authors without links to items
+        no_links_which_df: pd.Series = (
+            self.author["Link to Schmidt dataset"] == ""
+        )
+        no_links_names_df: pd.Series = self.author.loc[
+            no_links_which_df,
+            "Publishing Organization Name",
+        ]
+        no_links_names: Set[str] = list(set(no_links_names_df.tolist()))
+        if len(no_links_names) > 0:
+            no_links_names.sort()
+            print(
+                "\nThe following publishing organizations have no items and "
+                "will not be imported:"
+            )
+            name: str = None
+            for name in no_links_names:
+                print("    " + name)
+            print("")
+
+            # update df to remove no links rows
+            self.author = self.author.loc[~no_links_which_df, :]
+
+        # raise exception if authors have non-unique names
+        dupes_which: pd.Series = self.author[
+            "Publishing Organization Name"
+        ].duplicated()
+        dupe_names_df: pd.Series = self.author.loc[
+            dupes_which, "Publishing Organization Name"
+        ]
+        dupe_names: List[str] = list(set(dupe_names_df.tolist()))
+        if len(dupe_names) > 0:
+            print(
+                "\nThe following publishing organization names are used more "
+                "than once. Please ensure all have unique names."
+            )
+            dupe_names_formatted: List[str] = [
+                v if v != "" else "[blank]" for v in dupe_names
+            ]
+            name: str = None
+            for name in dupe_names_formatted:
+                print("\t" + name)
+            raise ValueError("All publishing org. names must be unique.")
