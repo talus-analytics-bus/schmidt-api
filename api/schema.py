@@ -1112,6 +1112,10 @@ def assign_field_value_to_export_row(row, d, field):
     linked = field.linked_entity_name != field.entity_name
     if not linked:
         row[field.colgroup][field.display_name] = get_val(d, field)
+    elif field.field == "related_s3_permalink":
+        row[field.colgroup][field.display_name] = "\n".join(
+            [f.s3_permalink for f in d.related_files]
+        )
     else:
         linked_field_name = field.linked_entity_name.lower() + "s"
         linked_instances = getattr(d, linked_field_name)

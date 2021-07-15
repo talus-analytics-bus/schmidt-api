@@ -26,7 +26,7 @@ if __name__ == "__main__":
     client.update_funders(db)
     client.update_authors(db)
     client.update_events(db)
-    client.update_files(db, scrape_text=True)
+    client.update_files(db, do_scrape_text=True)
 
     # collate search text for each item from other metadata
     client.update_item_search_text(db)

@@ -26,6 +26,7 @@ class Item(db.Entity):
     key_topics = Set("KeyTopic")
     title = Optional(str, sql_default="'Untitled'", nullable=True)
     description = Optional(str)
+    related_description = Optional(str)
     sub_organizations = Optional(str)
     link = Optional(str)
     internal_research_note = Optional(str)
@@ -51,7 +52,10 @@ class Item(db.Entity):
     authors = Set("Author", table="authors_to_items")
     funders = Set("Funder", table="funders_to_items")
     events = Set("Event", table="events_to_items")
-    files = Set("File", table="files_to_items")
+    files = Set("File", table="files_to_items", reverse="items")
+    related_files = Set(
+        "File", table="related_files_to_items", reverse="related_items"
+    )
     items = Set("Item", table="items_to_items", reverse="_items")
     _items = Set("Item", table="items_to_items")
 
@@ -125,6 +129,7 @@ class File(db.Entity):
 
     # Relationships
     items = Set("Item", table="files_to_items")
+    related_items = Set("Item", table="related_files_to_items")
 
 
 class Metadata(db.Entity):
