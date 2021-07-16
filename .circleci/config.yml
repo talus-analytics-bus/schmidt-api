@@ -1,4 +1,6 @@
-version: 2
+version: 2.1
+orbs:
+  tester: thekevjames/tester@1.2.116
 jobs:
   deploy-prod:
     working_directory: ~/repo
@@ -32,6 +34,10 @@ jobs:
           working_directory: /
           command: |
             sudo pip3 install awsebcli --upgrade
+
+      - run:
+          name: Running tests
+          command: pytest
 
       - run:
           name: Deploying
