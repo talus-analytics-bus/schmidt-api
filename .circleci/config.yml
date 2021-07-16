@@ -36,7 +36,7 @@ jobs:
       - run:
           name: Running tests
           command: |
-            sudo pip install -r requirements/dev.txt && pytest;
+            sudo pip3 install -r requirements/dev.txt && pytest;
 
       - run:
           name: Deploying
