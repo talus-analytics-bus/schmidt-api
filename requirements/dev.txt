@@ -1,0 +1,3 @@
+-r common.txt
+alive-progress==1.6.2
+black==21.6b0
