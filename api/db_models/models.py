@@ -1,5 +1,5 @@
 ##
-# # API and database setup file.
+# Database models.
 ##
 
 # Standard libraries
@@ -13,7 +13,7 @@ from api.db import db
 
 
 class Item(db.Entity):
-    """Reports, etc.."""
+    """Reports, etc."""
 
     _table_ = "item"
 
