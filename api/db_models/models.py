@@ -9,7 +9,7 @@ from datetime import date
 from pony.orm import PrimaryKey, Required, Optional, Set
 from pony.orm.core import db_session, select
 from pony.utils.utils import count
-from . import db
+from api.db import db
 
 
 class Item(db.Entity):

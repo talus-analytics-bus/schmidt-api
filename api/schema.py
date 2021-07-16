@@ -1,5 +1,5 @@
 ##
-# # API schema
+# API schema
 ##
 
 # Standard libraries
@@ -8,14 +8,17 @@ import re
 import math
 import logging
 from io import BytesIO
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 # Third party libraries
 import boto3
 import pprint
 from pony.orm import select, db_session, raw_sql, count, desc, coalesce
+from pony.orm.core import Query
 
 # Local libraries
-from .db_models import db
+from api.db_models.models import Item, Metadata, Glossary
+from api.db import db
 from . import search
 from .export import SchmidtExportPlugin
 from .utils import is_listlike, jsonify_response, DefaultOrderedDict
@@ -25,8 +28,17 @@ pp = pprint.PrettyPrinter(indent=4)
 s3 = boto3.client("s3")
 
 
-def cached(func):
-    """Caching"""
+def cached(func: Callable):
+    """Decorator that returns function output if previously generated, as
+    indexed by the concatenated kwargs; otherwise, runs the function and stores
+    the output in the cache indexed by the concatenated kwargs.
+
+    Args:
+        func (Callable): Any function
+
+    Returns:
+        Any: The function result, possibly from the cache.
+    """
     cache = {}
 
     @functools.wraps(func)
@@ -44,21 +56,32 @@ def cached(func):
 
 
 @db_session
-def cached_items(func):
-    """Caching for PonyORM item instances"""
-    cache = {}
+def cached_items(func: Callable) -> Any:
+    """Return cached Item instances or cache them.
+
+    Args:
+        func (Callable): Function, presumably one returning Item instances.
+
+    Returns:
+        Any: Function output, presumably Item instances.
+    """
+    cache: dict = {}
 
     @functools.wraps(func)
-    def wrapper(*func_args, **kwargs):
+    def wrapper(*func_args, **kwargs) -> Any:
+        """A wrapper for the function.
 
-        key = str(kwargs)
+        Returns:
+            Any: Cache results or function output.
+        """
+        key: str = str(kwargs)
         if key in cache:
 
             # get items by id
-            items = cache[key]
+            items: Any = cache[key]
             return items
 
-        results = func(*func_args, **kwargs)
+        results: Any = func(*func_args, **kwargs)
         cache[key] = results
         return results
 
@@ -263,28 +286,40 @@ def get_search(
     is_desc: bool = True,
     preview: bool = False,
     explain_results: bool = True,
-):
-    """.
+) -> dict:
+    """Get search results.
 
-    Parameters
-    ----------
-    id : int
-        Description of parameter `id`.
-    get_thumb : bool
-        Description of parameter `get_thumb`.
+    Args:
+        page (int): The current page.
 
-    Returns
-    -------
-    type
-        Description of returned object.
+        pagesize (int): The page size.
 
+        filters (dict, optional): Filters to. Defaults to {}.
+
+        search_text (str, optional): Text to search by. Defaults to None.
+
+        order_by (str, optional): Field to order on. Defaults to "date".
+
+        is_desc (bool, optional): Whether ordering is descending. Defaults
+        to True.
+
+        preview (bool, optional): True if search is only a preview, meaning
+        that the number of results and not the results themselves is needed.
+        Defaults to False.
+
+        explain_results (bool, optional): True if information about why each
+        search result matched should be returned. Defaults to True.
+
+    Returns:
+        dict: The search results data.
     """
+
     # get ordered items, from cache if available
-    [
+    (
         ordered_items,
         filter_counts,
         other_instances,
-    ] = get_ordered_items_and_filter_counts(
+    ) = get_ordered_items_and_filter_counts(
         filters=filters,
         search_text=search_text,
         order_by=order_by,
@@ -295,7 +330,7 @@ def get_search(
 
     # paginate items
     # apply most efficient pagination method based on `items` type
-    total = None
+    total: int = None
     if type(ordered_items) == list:
         start = 1 + pagesize * (page - 1) - 1
         end = pagesize * (page)
@@ -306,7 +341,7 @@ def get_search(
         items = ordered_items.page(page, pagesize=pagesize)
 
     # if applicable, get explanation for search results (snippets)
-    data_snippets = list()
+    data_snippets: list = list()
     if (
         not preview
         and explain_results
@@ -470,29 +505,25 @@ def get_search(
 
 
 @db_session
-def apply_filters_to_items(items, filters: dict = {}, search_text: str = None):
+def apply_filters_to_items(
+    items: Query, filters: dict = {}, search_text: str = None
+) -> Query:
     """Given a set of filters, returns the items that match. If
     `explain_results` is True, return for each item the field(s) that matched
     and a highlighted text snippet (HTML) that shows what matched.
 
-    Parameters
-    ----------
-    items : type
-        Description of parameter `items`.
-    filters : dict
-        Description of parameter `filters`.
-    explain_results : bool
-        Description of parameter `explain_results`.
+    Args:
+        items (Query): The query selecting items.
+        filters (dict, optional): Filters to apply. Defaults to {}.
+        search_text (str, optional): Text to search by. Defaults to None.
 
-    Returns
-    -------
-    type
-        Description of returned object.
-
+    Returns:
+        Query: The filtered items query.
     """
-    tag_sets = ("key_topics",)
+    tag_sets: tuple = ("key_topics",)
+    field: str = None
     for field in filters:
-        allowed_values = filters[field]
+        allowed_values: List[Any] = filters[field]
 
         # filters items by Tag attributes
         if field in tag_sets:
@@ -651,23 +682,30 @@ def apply_filters_to_items(items, filters: dict = {}, search_text: str = None):
 
 
 def apply_ordering_to_items(
-    items, order_by: str = "date", is_desc: bool = True, search_text=None
-):
-    """Given an ordering, returns the items in that order.
+    items: Query,
+    order_by: str = "date",
+    is_desc: bool = True,
+    search_text: str = None,
+) -> Union[Query, List[Item]]:
+    """Returns ordered list of items either as database query or, if ordering
+    by item relevance, a list of Item instances.
 
-    Parameters
-    ----------
-    items : type
-        Description of parameter `items`.
-    ordering : list(list)
-        Description of parameter `list`.
+    Args:
+        items (Query): The query selecting items to be ordered.
 
-    Returns
-    -------
-    type
-        Description of returned object.
+        order_by (str, optional): The field ordered by. Defaults to "date".
 
+        is_desc (bool, optional): Whether ordering is descending. Defaults
+        to True.
+
+        search_text (str, optional): Text to search by, used to determine
+        item relevance if ordering by relevance. Defaults to None.
+
+    Returns:
+        Union[Query, List[Item]]: The item database query or, if ordering by
+        relevance, the list of Item instances.
     """
+
     # TODO implement col ordering (relevance is done for now)
     by_relevance = order_by == "relevance"
     item_ids_by_relevance = list()
@@ -705,21 +743,8 @@ def apply_ordering_to_items(
 
 @db_session
 def get_matching_instances(
-    items, search_text: str = None, explain_results: bool = True
+    items: Query, search_text: str = None, explain_results: bool = True
 ):
-    """Given filters, return dict of lists of matching instances by class.
-
-    Parameters
-    ----------
-    filters : dict
-        Description of parameter `filters`.
-
-    Returns
-    -------
-    type
-        Description of returned object.
-
-    """
 
     # if blank, return nothing
     if search_text is None or search_text == "":
@@ -788,28 +813,17 @@ def get_items_if_other_filters_in_category_not_applied(
 
 
 @db_session
-# @cached
 def get_metadata_value_counts(
-    items=None,
-    all_items=None,
-    exclude=[],
-    filters=None,
+    items: Query = None,
+    all_items: Query = None,
+    exclude: List[str] = [],
+    filters: dict = None,
     search_text: str = None,
 ):
     """Given a set of items, returns the possible filter values in them and
     the number of items for each.
 
     TODO optimize by reducing db queries
-
-    Parameters
-    ----------
-    items : type
-        Description of parameter `items`.
-
-    Returns
-    -------
-    type
-        Description of returned object.
 
     """
 
@@ -1024,90 +1038,99 @@ def export(filters: dict = None, search_text: str = None):
     }
 
 
-def assign_field_value_to_export_row(row, d, field):
+def write_field_val_to_excel_row(
+    excel_row: DefaultOrderedDict,
+    item: Item,
+    meta: Metadata,
+) -> None:
     """Given the row dict and the `field` info, assigns the value to the row,
-    accounting for linked entities, etc., from the datum `d`
+    accounting for linked entities, etc., from the item
 
-    Parameters
-    ----------
-    row : type
-        Description of parameter `row`.
-    field : type
-        Description of parameter `field`.
+    Args:
+        row (DefaultOrderedDict): The row dictionary
+        which stores values to be written in the Excel export.
 
-    Returns
-    -------
-    type
-        Description of returned object.
+        item (Item): The item from which formatted values are needed.
 
+        field (Metadata): Information about the field corresponding to the
+        Excel column that is being assigned to.
     """
 
-    def get_val(d, field):
-        """Get formatted value of field based on type.
-
-        Parameters
-        ----------
-        d : type
-            Description of parameter `d`.
-        field : type
-            Description of parameter `field`.
-
-        Returns
-        -------
-        type
-            Description of returned object.
-
+    def get_formatted_val(item: Item, meta: Metadata) -> Any:
         """
-        val_tmp = getattr(d, field.field, None)
+        Get formatted value of field based on type for writing to an
+        Excel file.
 
-        # parse bool as yes/no
-        if field.type == "bool":
+        Args:
+            item (Item): The item from which a formatted val. is needed
+            meta (Metadata): Info about the column to be assign to.
+
+        Returns:
+            Any: A formatted value of any type to be written to the Excel file.
+        """
+        val_tmp: Any = getattr(item, meta.field, None)
+
+        # parse boolean values as yes/no
+        if meta.type == "bool":
             if val_tmp is None:
                 return ""
             elif val_tmp is True:
                 return "Yes"
             else:
                 return "No"
-        elif field.type == "date":
-            # sortable date published
-            if field.field == "date_sortable":
-                # date published
-                val_tmp = d.date
-                if d.date_type == 1:
+
+        # parse dates based on how precise they are and whether they are
+        # intended to be sortable.
+        elif meta.type == "date":
+            # sortable date published, with varying degrees of precision
+            if meta.field == "date_sortable":
+                val_tmp = item.date
+                if item.date_type == 1:
                     month = str(val_tmp.month)
                     if len(month) == 1:
                         month = "0" + month
                     return f"""{str(val_tmp.year)}-{month}-XX"""
-                elif d.date_type == 2:
+                elif item.date_type == 2:
                     return f"""{str(val_tmp.year)}-XX-XX"""
-                elif d.date_type == 0:
+                elif item.date_type == 0:
                     return str(val_tmp)
-            elif field.field == "date":
-                if d.date_type == 1:
+            # date published, with varying degrees of precision
+            elif meta.field == "date":
+                if item.date_type == 1:
                     return val_tmp.strftime("%b %Y")
-                elif d.date_type == 2:
+                elif item.date_type == 2:
                     return val_tmp.strftime("%Y")
-                elif d.date_type == 0:
+                elif item.date_type == 0:
                     return val_tmp.strftime("%b %d, %Y")
+
+        # write listlike vals. as semicolon-delimited lists
         elif is_listlike(val_tmp):
             return "; ".join([str(v) for v in val_tmp])
         else:
             return val_tmp if val_tmp is not None else ""
 
-    linked = field.linked_entity_name != field.entity_name
-    if not linked:
-        row[field.colgroup][field.display_name] = get_val(d, field)
-    elif field.field == "related_s3_permalink":
-        row[field.colgroup][field.display_name] = "\n".join(
-            [f.s3_permalink for f in d.related_files]
+    is_linked: bool = meta.linked_entity_name != meta.entity_name
+
+    # non-linked fields: format as needed
+    if not is_linked:
+        excel_row[meta.colgroup][meta.display_name] = get_formatted_val(
+            item, meta
         )
+
+    # special case: related files URLs
+    elif meta.field == "related_s3_permalink":
+        excel_row[meta.colgroup][meta.display_name] = "\n".join(
+            [f.s3_permalink for f in item.related_files]
+        )
+
+    # linked fields: get values and represent as list of strings (one per line)
     else:
-        linked_field_name = field.linked_entity_name.lower() + "s"
-        linked_instances = getattr(d, linked_field_name)
+        linked_field_name = meta.linked_entity_name.lower() + "s"
+        linked_instances = getattr(item, linked_field_name)
         strs = list()
         for dd in linked_instances:
-            strs.append(get_val(dd, field))
-        row[field.colgroup][field.display_name] = "\n".join(strs)
+            strs.append(get_formatted_val(dd, meta))
+        excel_row[meta.colgroup][meta.display_name] = "\n".join(strs)
 
 
 @db_session
@@ -1116,20 +1139,16 @@ def assign_field_value_to_export_row(row, d, field):
 def get_export_data(filters: dict = None, search_text: str = None):
     """Returns items that match the filters for export.
 
-    Parameters
-    ----------
-    filters : dict
-        Description of parameter `filters`.
+    Args:
+        filters (dict, optional): Filters to apply. Defaults to None.
+        search_text (str, optional): Text to search for. Defaults to None.
 
-    Returns
-    -------
-    type
-        Description of returned object.
-
+    Returns:
+        DefaultOrderedDict: Rows for Excel export.
     """
 
     # get data fields to be exported
-    export_fields = select(
+    export_metas: Query = select(
         i for i in db.Metadata if i.entity_name == "Item" and i.export
     ).order_by(db.Metadata.order)
 
@@ -1138,42 +1157,52 @@ def get_export_data(filters: dict = None, search_text: str = None):
     items = select(i for i in db.Item).order_by(
         raw_sql(f"""i.{order_field} DESC NULLS LAST""")
     )
-    filtered_items = apply_filters_to_items(items, filters, search_text)
+    filtered_items: Query = apply_filters_to_items(items, filters, search_text)
 
-    # get rows
-    rows = list()
+    # get rows to write to Excel file
+    rows: List[dict] = list()
 
     # format data for export
-    for d in filtered_items:
-        row = DefaultOrderedDict(DefaultOrderedDict)
-        for field in export_fields:
-            assign_field_value_to_export_row(row, d, field)
-
-        rows.append(row)
+    item: Item = None
+    for item in filtered_items:
+        excel_row: DefaultOrderedDict = DefaultOrderedDict(DefaultOrderedDict)
+        meta: Metadata = None
+        for meta in export_metas:
+            write_field_val_to_excel_row(excel_row, item, meta)
+        rows.append(excel_row)
 
     return rows
 
 
 @db_session
 @jsonify_response
-def get_export_legend_data():
-    """Returns legend entry data for all fields exported in XLSX file."""
+def get_export_legend_data() -> List[DefaultOrderedDict]:
+    """Returns legend entry data for all fields exported in Excel, to be
+    written to the Excel's legend sheet.
+
+    Returns:
+        List[DefaultOrderedDict]: The definition row
+        and the possible values row data to write to the Excel legend sheet.
+    """
     # get data fields to be exported
-    export_fields = select(
+    export_metas: Query = select(
         i for i in db.Metadata if i.entity_name == "Item" and i.export
     ).order_by(db.Metadata.order)
 
     # format data for export
-    def_row = DefaultOrderedDict(DefaultOrderedDict)
-    val_row = DefaultOrderedDict(DefaultOrderedDict)
-    for field in export_fields:
+    defs_row_text = DefaultOrderedDict(DefaultOrderedDict)
+    poss_vals_row_text = DefaultOrderedDict(DefaultOrderedDict)
+    meta: Metadata = None
+    for meta in export_metas:
         # definition
-        def_row[field.colgroup][field.display_name] = field.definition
+        defs_row_text[meta.colgroup][meta.display_name] = meta.definition
 
         # possible values
-        val_row[field.colgroup][field.display_name] = field.possible_values
+        poss_vals_row_text[meta.colgroup][
+            meta.display_name
+        ] = meta.possible_values
 
-    return [def_row, val_row]
+    return [defs_row_text, poss_vals_row_text]
 
 
 @db_session
@@ -1186,8 +1215,9 @@ def get_ordered_items_and_filter_counts(
     preview: bool = False,
     explain_results: bool = True,
 ):
+
     # get all items
-    all_items = get_all_items()
+    all_items: Query = get_all_items()
 
     # filter items
     filtered_items = apply_filters_to_items(all_items, filters, search_text)
@@ -1216,14 +1246,19 @@ def get_ordered_items_and_filter_counts(
     ordered_items = ordered_items_q
 
     # get results
-    results = [ordered_items, filter_counts, other_instances]
+    results = (ordered_items, filter_counts, other_instances)
 
     # order items
     return results
 
 
 @cached_items
-def get_all_items():
+def get_all_items() -> Query:
+    """Get all items as query with most fields prefetched.
+
+    Returns:
+        Query: Query presenting all items.
+    """
     return select(i for i in db.Item).prefetch(
         db.Item.key_topics,
         db.Item.funders,
@@ -1236,14 +1271,11 @@ def get_all_items():
 
 
 @db_session
-def get_glossary():
-    """Get all glossary records.
+def get_glossary() -> List[Glossary]:
+    """Get all glossary instances.
 
-    Returns
-    -------
-    list
-        List of PonyORM records for glossary.
-
+    Returns:
+        List[Glossary]: List of glossary instances.
     """
     return db.Glossary.select().order_by(
         db.Glossary.colname, db.Glossary.term

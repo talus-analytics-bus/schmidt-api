@@ -1,4 +1,11 @@
-from api import app as application
+from api.db import app as application, db
+
+# load API
+from api.routing.routes import api  # noqa: F401
+
+# Generate mapping (create tables if they don't already exist) to store data.
+# Change this argument to True if the tables you need don't yet exist.
+db.generate_mapping(create_tables=True)
 
 
 def main():

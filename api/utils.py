@@ -17,7 +17,7 @@ from pony.orm.core import Multiset, QueryResult, Set, SetInstance
 from werkzeug.exceptions import NotFound
 
 # Local libraries
-from .db_models import db
+from api.db import db
 
 
 # pretty printing: for printing JSON objects legibly
