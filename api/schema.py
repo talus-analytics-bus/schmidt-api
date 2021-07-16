@@ -744,7 +744,7 @@ def apply_ordering_to_items(
 @db_session
 def get_matching_instances(
     items: Query, search_text: str = None, explain_results: bool = True
-):
+) -> dict:
 
     # if blank, return nothing
     if search_text is None or search_text == "":
@@ -1136,7 +1136,9 @@ def write_field_val_to_excel_row(
 @db_session
 @cached
 @jsonify_response
-def get_export_data(filters: dict = None, search_text: str = None):
+def get_export_data(
+    filters: dict = None, search_text: str = None
+) -> List[dict]:
     """Returns items that match the filters for export.
 
     Args:
@@ -1144,7 +1146,7 @@ def get_export_data(filters: dict = None, search_text: str = None):
         search_text (str, optional): Text to search for. Defaults to None.
 
     Returns:
-        DefaultOrderedDict: Rows for Excel export.
+        List[dict]: Rows for Excel export.
     """
 
     # get data fields to be exported
@@ -1153,8 +1155,8 @@ def get_export_data(filters: dict = None, search_text: str = None):
     ).order_by(db.Metadata.order)
 
     # get items to be exported
-    order_field = "date"
-    items = select(i for i in db.Item).order_by(
+    order_field: str = "date"
+    items: Query = select(i for i in db.Item).order_by(
         raw_sql(f"""i.{order_field} DESC NULLS LAST""")
     )
     filtered_items: Query = apply_filters_to_items(items, filters, search_text)
@@ -1214,25 +1216,52 @@ def get_ordered_items_and_filter_counts(
     is_desc: bool = True,
     preview: bool = False,
     explain_results: bool = True,
-):
+) -> Tuple[Query, dict, Dict[str, list]]:
+    """Returns ordered items matching filters and the number of results with
+    each filter value.
+
+    Args:
+        filters (dict, optional): Filters to apply. Defaults to {}.
+
+        search_text (str, optional): Text to search by. Defaults to None.
+
+        order_by (str, optional): Field to order on. Defaults to "date".
+
+        is_desc (bool, optional): Whether ordering is descending. Defaults
+        to True.
+
+        preview (bool, optional): True if search is only a preview, meaning
+        that the number of results and not the results themselves is needed.
+        Defaults to False.
+
+        explain_results (bool, optional): True if information about why each
+        search result matched should be returned. Defaults to True.
+
+    Returns:
+        Tuple[Query, dict, Dict[str, list]]: The query containing matching item
+        instances; a dictionary counting instances; and, if preview only, the
+        number of matches for each instance by filter value.
+    """
 
     # get all items
     all_items: Query = get_all_items()
 
     # filter items
-    filtered_items = apply_filters_to_items(all_items, filters, search_text)
+    filtered_items: Query = apply_filters_to_items(
+        all_items, filters, search_text
+    )
 
     # if search text not null and not preview: get matching instances by class
-    other_instances = (
+    other_instances: Dict[str, list] = (
         get_matching_instances(
             filtered_items, search_text, explain_results  # TODO dynamically
         )
         if preview
-        else []
+        else dict()
     )
 
     # get filter value counts for current set
-    filter_counts = get_metadata_value_counts(
+    filter_counts: dict = get_metadata_value_counts(
         items=filtered_items,
         all_items=all_items,
         filters=filters,
@@ -1240,13 +1269,16 @@ def get_ordered_items_and_filter_counts(
     )
 
     # get ordered items
-    ordered_items_q = apply_ordering_to_items(
+    ordered_items: Query = apply_ordering_to_items(
         filtered_items, order_by, is_desc, search_text
     )
-    ordered_items = ordered_items_q
 
     # get results
-    results = (ordered_items, filter_counts, other_instances)
+    results: Tuple[Query, dict, Dict[str, list]] = (
+        ordered_items,
+        filter_counts,
+        other_instances,
+    )
 
     # order items
     return results
