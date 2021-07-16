@@ -10,6 +10,7 @@ from pony.orm import db_session
 from api import schema
 from api.db import app
 from api.utils import format_response
+from api.metadatacounter.core import MetadataCounter
 
 
 # define API
@@ -277,7 +278,8 @@ class Filter_Counts(Resource):
 
         # get ids of items from URL params
         exclude = request.args.getlist("exclude")
-        return schema.get_metadata_value_counts(
+        counter: MetadataCounter = MetadataCounter()
+        return counter.get_metadata_value_counts(
             items=None, exclude=exclude, filters={}, search_text=search_text
         )
 
