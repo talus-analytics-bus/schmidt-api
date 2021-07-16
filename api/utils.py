@@ -11,10 +11,8 @@ from datetime import date
 
 # Third party libraries
 import pprint
-import flask
 from flask import Response
-from pony.orm.core import Multiset, QueryResult, Set, SetInstance
-from werkzeug.exceptions import NotFound
+from pony.orm.core import Multiset, QueryResult, SetInstance
 
 # Local libraries
 from api.db import db
