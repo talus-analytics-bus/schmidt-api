@@ -56,6 +56,28 @@ def test_final_review():
 
 @db_session
 @generate_mapping
+def test_title_and_desc():
+    """Only allow items that have titles and descriptions."""
+    invalid_items: List[Item] = (
+        select(
+            i
+            for i in Item
+            if i.title.strip() == "" or i.description.strip() == ""
+        )
+    )[:][:]
+    try:
+        assert len(invalid_items) == 0, (
+            str(len(invalid_items)) + " item(s) lack title(s) and/or desc(s)"
+        )
+    except AssertionError:
+        raise InvalidItemsError(
+            invalid_items,
+            "The following items lack titles and/or descriptions:",
+        )
+
+
+@db_session
+@generate_mapping
 def test_pdf_exclusion():
     """Ensures PDFs are excluded from items where appropriate."""
     invalid_items: List[Item] = select(
