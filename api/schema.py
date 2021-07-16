@@ -7,7 +7,6 @@ import functools
 import re
 import math
 import logging
-from datetime import date
 from io import BytesIO
 
 # Third party libraries
@@ -125,9 +124,6 @@ def get_item(
         # get item
         item = db.Item[id]
 
-        # define data output
-        items = [item]
-
         # if include related, get those too
         # include all directly related items and, if that is fewer than 10,
         # as many items with a related topic as required to reach 10 total
@@ -187,7 +183,7 @@ def get_item(
                 why = list()
                 if d in item.items:
                     why.append("directly related")
-                if not d in item.items:
+                if d not in item.items:
                     why.append("similar topic")
 
                 already_added.add(d.id)
@@ -245,14 +241,6 @@ def get_file(id: int, get_thumb: bool):
     except Exception as e:
         logging.exception(e)
         return "Document not found (404)"
-
-    # # return to start of IO stream
-    # data.seek(0)
-
-    # return file with correct media type given its extension
-    media_type = "application"
-    if key.endswith(".pdf"):
-        media_type = "application/pdf"
 
     attachment_filename = (
         file.filename if not get_thumb else file.s3_filename + "_thumb.png"
@@ -325,7 +313,6 @@ def get_search(
         and search_text is not None
         and search_text != ""
     ):
-        search_items_with_snippets = list()
         cur_search_text = (
             search_text.lower() if search_text is not None else ""
         )
@@ -362,7 +349,6 @@ def get_search(
                 ("events", "name"),
             )
             for field, linked_field in fields_tag_str:
-                tags = getattr(getattr(d, field), linked_field)
                 value = getattr(getattr(d, field), linked_field)
                 if type(value) == str:
                     if cur_search_text in value.lower():
@@ -699,7 +685,6 @@ def apply_ordering_to_items(
             item_ids_by_relevance.append((d.id, relevance))
         item_ids_by_relevance.sort(key=lambda x: x[1])
         item_ids_by_relevance.reverse()
-        item_ids = [i[0] for i in item_ids_by_relevance]
         items = [db.Item[i[0]] for i in item_ids_by_relevance]
         # if not sorting by relevance, handle other cases
     elif order_by == "date" or order_by == "title":
@@ -1079,7 +1064,7 @@ def assign_field_value_to_export_row(row, d, field):
         if field.type == "bool":
             if val_tmp is None:
                 return ""
-            elif val_tmp == True:
+            elif val_tmp is True:
                 return "Yes"
             else:
                 return "No"
