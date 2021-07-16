@@ -19,6 +19,7 @@ debug.py
 
 # py cache
 __pycache__/
+.pyc
 
 # visual studio code
 .vscode
