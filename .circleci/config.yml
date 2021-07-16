@@ -22,7 +22,7 @@ jobs:
     working_directory: ~/repo
 
     docker:
-      - image: circleci/python:3.7.7
+      - image: circleci/python:3.7.10
 
     steps:
       - checkout
@@ -36,7 +36,7 @@ jobs:
       - run:
           name: Running tests
           command: |
-            sudo pip3 install -r requirements/dev.txt && pytest;
+            sudo pip install -r requirements/dev.txt && pytest;
 
       - run:
           name: Deploying
