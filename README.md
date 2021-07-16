@@ -25,7 +25,9 @@ Written by Mike Van Maele (mvanmaele@talusanalytics.com)
 
 3.  **Install packages**
 
-    Do `pipenv --python=3.7` and then `pipenv install -r requirements.txt` from the project root directory.
+    - Create a virtual environment for the project using `venv` (follow [this checklist](https://github.com/talus-analytics-bus/talus-intranet-react/wiki/Setting-up-a-Python-virtual-environment) for instructions if you're unsure).
+    - Activate the virtual environment.
+    - Install dev Python packages by doing `pip install -r requirements/dev.txt`.
 
 
 4. **Start API server**
