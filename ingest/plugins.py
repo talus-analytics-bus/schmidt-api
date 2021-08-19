@@ -96,7 +96,9 @@ class SchmidtPlugin(IngestPlugin):
 
         if api_key is None:
             print(
-                "\n\n[FATAL ERROR] No Airtable API key found. Please define it as an environment variable (e.g., `export AIRTABLE_API_KEY=[key]`)"
+                "\n\n[FATAL ERROR] No Airtable API key found. Please define"
+                " it as an environment variable (e.g.,"
+                " `export AIRTABLE_API_KEY=[key]`)"
             )
             sys.exit(1)
 
@@ -240,9 +242,18 @@ class SchmidtPlugin(IngestPlugin):
                 return True
             return False
 
+        # store optionset values encountered to add to database, indexed by
+        # the optionset name and then the tag name
+        db_optionset_tags: DefaultDict[
+            str, DefaultDict[str, Optionset]
+        ] = defaultdict(lambda: defaultdict(lambda: None))
+
         # parse items into instances to write to database
         raw_item_data: dict = None
         for raw_item_data in self.items.to_dict(orient="records"):
+
+            # store optionset tags to add
+            tags_to_add: DefaultDict[str, Set[str]] = defaultdict(set)
 
             # reject item data if not acceptable
             if reject(raw_item_data):
@@ -257,7 +268,6 @@ class SchmidtPlugin(IngestPlugin):
             get_keys = "id"
             upsert_get = dict()
             upsert_set = {"source_id": raw_item_data["source_id"]}
-            upsert_optionset: DefaultDict[str, Set[str]] = defaultdict(set)
 
             for field_datum in metadata:
                 is_linked = (
@@ -287,7 +297,6 @@ class SchmidtPlugin(IngestPlugin):
                                 value = value.replace("; ", ";")
                                 value = value.split(";")
                         elif field_datum.type == "bool":
-
                             if value in ("Yes", "checked", True, "True"):
                                 value = True
                             elif value in ("No", "", None, False, "False"):
@@ -299,11 +308,35 @@ class SchmidtPlugin(IngestPlugin):
                                 upsert_get[key] = value
                             else:
                                 upsert_set[key] = value
+                        elif value in ("", None):
+                            continue
                         else:
-                            v: str = None
-                            for v in value:
-                                upsert_optionset[key].add(v)
+                            # if value is not list like, make it so
+                            value_list: List[str] = (
+                                [value] if type(value) == str else value
+                            )
 
+                            # if tags have not been ingested yet, upsert them
+                            # into the database, store them in the lookup
+                            # table, and tag item with them. Otherwise, get the
+                            # tag from the lookup table and tag item with them.
+                            v: str = None
+                            for v in value_list:
+                                db_tag: Optionset = None
+                                if v not in db_optionset_tags[key]:
+                                    _action, db_tag = upsert(
+                                        OPTIONSET_CLASS_BY_FIELD[key],
+                                        get={"name": v},
+                                    )
+                                    db_optionset_tags[key][v] = db_tag
+                                if db_tag is not None:
+                                    tags_to_add[key].add(db_tag)
+                                else:
+                                    tags_to_add[key].add(
+                                        db_optionset_tags[key][v]
+                                    )
+
+            # upsert Item record
             _action, upserted = upsert(
                 db.Item,
                 get=upsert_get,
@@ -315,23 +348,26 @@ class SchmidtPlugin(IngestPlugin):
 
             # set item's optionset values
             optionset_field: str = None
-            for optionset_field in upsert_optionset:
-                OptionsetClass: Type[Optionset] = OPTIONSET_CLASS_BY_FIELD[
+            for optionset_field in db_optionset_tags:
+                OptionsetClass: Optionset = OPTIONSET_CLASS_BY_FIELD[
                     optionset_field
                 ]
-                upsert_optionset_field_vals = list(
-                    upsert_optionset[optionset_field]
+                cur_optionset_tags: List[Optionset] = list(
+                    tags_to_add[optionset_field]
                 )
-                for optionset_name in upsert_optionset_field_vals:
-                    _action_optionset, upserted_optionset = upsert(
-                        OptionsetClass,
-                        get={"name": optionset_name},
-                        set=dict(),
-                    )
-                    commit()
 
-                    getattr(upserted, optionset_field).add(upserted_optionset)
-                    commit()
+                # assign one tag for single selects, and all tags for multi
+                if OptionsetClass.is_single:
+                    first_el: Optionset = (
+                        cur_optionset_tags[0]
+                        if len(cur_optionset_tags) > 0
+                        else None
+                    )
+                    if first_el is not None:
+                        setattr(upserted, optionset_field, first_el)
+                else:
+                    setattr(upserted, optionset_field, cur_optionset_tags)
+            commit()
 
         # Link related items
         link_rel_items: bool = MAX_ITEMS is None
@@ -344,7 +380,7 @@ class SchmidtPlugin(IngestPlugin):
                 commit()
 
         # add date type
-        define_date_types(db)
+        set_date_types(db)
 
         # Delete old items from the db
         to_delete = select(i for i in db.Item if i not in all_upserted)
@@ -358,17 +394,6 @@ class SchmidtPlugin(IngestPlugin):
     def update_item_search_text(self, db):
         """Set item `search_text` column to contain all attributes that
         should be searched.
-
-        Parameters
-        ----------
-        db : type
-            Description of parameter `db`.
-
-        Returns
-        -------
-        type
-            Description of returned object.
-
         """
         print("\nUpdating aggregated item search text...")
         fields_str = (
@@ -400,20 +425,26 @@ class SchmidtPlugin(IngestPlugin):
         with alive_bar(all_items.count(), title="Updating search text") as bar:
             for i in all_items:
                 bar()
-                search_text = ""
+                running_search_text = ""
                 file_search_text = ""
                 for field in fields_str:
                     value = getattr(i, field)
                     if type(value) == list:
                         value = " ".join(value)
-                    search_text += value + " "
+                    running_search_text += value + " "
                 for field in fields_optionset:
+                    OptionsetClass: Optionset = OPTIONSET_CLASS_BY_FIELD[field]
                     optionset_values: List[Optionset] = getattr(i, field)
                     if optionset_values is not None:
-                        optionset_names = select(
-                            tag.name for tag in optionset_values
-                        )[:][:]
-                        search_text += " - ".join(optionset_names) + " "
+                        search_text_to_add: str = ""
+                        if OptionsetClass.is_single:
+                            search_text_to_add = " - " + optionset_values.name
+                        else:
+                            optionset_names = select(
+                                tag.name for tag in optionset_values
+                            )[:][:]
+                            search_text_to_add = " - ".join(optionset_names)
+                        running_search_text += search_text_to_add + " "
 
                 # add linked fields from related entities like authors
                 for field in linked_fields_str:
@@ -430,10 +461,10 @@ class SchmidtPlugin(IngestPlugin):
                         str_to_concat = str_to_concat[0:100000]
                         file_search_text += str_to_concat
                     else:
-                        search_text += str_to_concat
+                        running_search_text += str_to_concat
 
                 # update search text
-                i.search_text = search_text.lower()
+                i.search_text = running_search_text.lower()
                 i.file_search_text = file_search_text.lower()
                 commit()
         print("Complete.")
@@ -445,6 +476,7 @@ class SchmidtPlugin(IngestPlugin):
             db.Funder,
             db.Author,
             db.Event,
+            db.Optionset,
         )
         print("\n\nDeleting existing records (except files)...")
         for entity_class in entity_classes:
