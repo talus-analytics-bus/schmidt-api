@@ -3,7 +3,7 @@
 from os import sys
 
 # local modules
-from api import db
+from application import db
 from ingest import SchmidtPlugin
 
 if __name__ == "__main__":
