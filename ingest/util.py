@@ -96,7 +96,7 @@ def upsert(cls, get: dict, set: dict = None, skip: list = []):
 
         """
         if type(value) == bool:
-            if x == True or x == False:
+            if x is True or x is False:
                 return x
             if x == "":
                 return False
@@ -193,7 +193,7 @@ def download_file(
                 with open(write_path + fn, "wb") as out:
                     out.write(response.data)
                 return True
-    except Exception as e:
+    except Exception:
         return None
     else:
         print("Error when downloading PDF (404)")
@@ -287,14 +287,7 @@ def get_s3_bucket_keys(s3_bucket_name: str):
 
 
 @db_session
-def define_date_types(db):
-    # items = select(i for i in db.Item)
-    # items_month_only = \
-    #     items.filter(lambda x: 'MONTH' in x.internal_research_note)
-    # items_year_only = \
-    #     items.filter(lambda x: 'YEAR' in x.internal_research_note)
-    # items_full_date = items.filter(lambda x: 'MONTH' not in x.internal_research_note and 'YEAR' not in x.internal_research_note)
-
+def set_date_types(db):
     items_by_date_type = select(
         (
             i,
