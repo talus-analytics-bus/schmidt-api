@@ -172,6 +172,9 @@ class Optionset(db.Entity):
     id = PrimaryKey(int, auto=True)
     name = Required(str)
 
+    # class attributes
+    is_single: bool = False  # multiselects by default
+
     # Helper methods
     @classmethod
     @db_session
@@ -219,9 +222,15 @@ class GeoSpecificity(Optionset):
     # Relationships: Items
     _items = Set("Item", reverse="geo_specificity")
 
+    # class attributes
+    is_single: bool = True
+
 
 class FieldRelationship(Optionset):
     """Field relationship optionset values."""
 
     # Relationships: Items
     _items = Set("Item", reverse="field_relationship")
+
+    # class attributes
+    is_single: bool = True
