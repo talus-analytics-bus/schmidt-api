@@ -31,8 +31,5 @@ if __name__ == "__main__":
     # collate search text for each item from other metadata
     client.update_item_search_text(db)
 
-    # remove tags that are unused
-    client.clean_optionset_vals(db)
-
     # exit
     sys.exit(0)
