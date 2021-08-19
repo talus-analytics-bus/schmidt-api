@@ -22,7 +22,7 @@ if __name__ == "__main__":
     client.do_qaqc()
     client.update_metadata(db, delete_old=True)
     client.update_glossary(db, delete_old=True)
-    client.update_items(db, delete_old=True)
+    client.update_items(db)
     client.update_funders(db)
     client.update_authors(db)
     client.update_events(db)

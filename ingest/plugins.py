@@ -176,13 +176,16 @@ class SchmidtPlugin(IngestPlugin):
         return self
 
     @db_session
-    def update_items(self, db, delete_old=False):
+    def update_items(self, db):
         """Get Items instance data from Airtable, parse into database records,
-        and write to database.
+        and write to database. Tags for optionset fields existing on Item
+        records are also added to the database in this method.
+
+        Note that existing data are always deleted before ingest.
 
         """
 
-        # limit number of items?
+        # limit number of items? used mainly for debugging
         MAX_ITEMS: int = os.environ.get("MAX_ITEMS")
 
         print("\nUpdating items...")
