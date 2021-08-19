@@ -206,7 +206,7 @@ def iterable(obj):
 
     """
     try:
-        iter(obj)
+        iter(obj)  # TODO optimize since this is likely slow
     except Exception:
         return False
     else:
