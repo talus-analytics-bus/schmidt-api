@@ -1,6 +1,4 @@
 version: 2.1
-orbs:
-  tester: thekevjames/tester@1.2.116
 jobs:
   deploy-prod:
     working_directory: ~/repo
