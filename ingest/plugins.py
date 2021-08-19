@@ -310,15 +310,7 @@ class SchmidtPlugin(IngestPlugin):
             # add upserted item to master set
             all_upserted.add(upserted)
 
-            # clear tags
-            upserted.tags = list()
-            upserted.key_topics = list()
-
-            # clear authors
-            upserted.authors = list()
-            commit()
-
-            # assign all tag field keys here from upsert_set
+            # set item's optionset values
             optionset_field: str = None
             for optionset_field in upsert_optionset:
                 OptionsetClass: Type[Optionset] = OPTIONSET_CLASS_BY_FIELD[
