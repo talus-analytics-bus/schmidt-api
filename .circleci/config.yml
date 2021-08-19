@@ -34,10 +34,6 @@ jobs:
             sudo pip3 install awsebcli --upgrade
 
       - run:
-          name: Running tests
-          command: pytest
-
-      - run:
           name: Deploying
           command: eb deploy schmidt-api-preview
 
