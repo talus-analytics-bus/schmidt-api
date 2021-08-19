@@ -34,7 +34,7 @@ from .util import (
     download_file,
     iterable,
     get_s3_bucket_keys,
-    define_date_types,
+    set_date_types,
     S3_BUCKET_NAME,
 )
 import pandas as pd
@@ -528,7 +528,7 @@ class SchmidtPlugin(IngestPlugin):
                 commit()
 
         # Remove any authors that have no items
-        to_delete = select(i for i in db.Author if len(i.items) == 0).delete()
+        select(i for i in db.Author if len(i.items) == 0).delete()
         commit()
         print("Authors updated.")
         return self
@@ -877,8 +877,8 @@ class SchmidtPlugin(IngestPlugin):
 
                                 field = file_to_check["field"]
                                 upsert_set[field] = (
-                                    "https://schmidt-storage.s3-us-west-1.amazonaws.com/"
-                                    + file_key
+                                    "https://schmidt-storage"
+                                    ".s3-us-west-1.amazonaws.com/" + file_key
                                 )
 
                     # upsert files
@@ -972,7 +972,7 @@ class SchmidtPlugin(IngestPlugin):
         dupes = data.duplicated(["Unique ID"])
         if dupes.any():
             print("\nDetected duplicate unique IDs:")
-            print(data[dupes == True].loc[:, "Unique ID"])
+            print(data[dupes == True].loc[:, "Unique ID"])  # noqa: E712
             valid = False
 
         # dates formatted well
