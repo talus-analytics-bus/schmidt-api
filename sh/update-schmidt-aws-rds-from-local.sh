@@ -58,6 +58,8 @@ pg_restore \
 cd ../.. && \
 
 # restart API server
+aws elasticbeanstalk restart-app-server --environment-name schmidt-api-prod \
+--region us-east-1 && \
 aws elasticbeanstalk restart-app-server --environment-name schmidt-api-preview \
 --region us-east-1 && \
 
