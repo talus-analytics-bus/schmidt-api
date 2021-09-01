@@ -8,7 +8,7 @@ import re
 import math
 import logging
 from io import BytesIO
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Set, Tuple, Union
 
 # Third party libraries
 import boto3
@@ -79,8 +79,12 @@ def cached_items(func: Callable) -> Any:
         if key in cache:
 
             # get items by id
-            items: Any = cache[key]
-            return items
+            res_tuple_tmp: Any = cache[key]
+            item_ids: Set[int] = {i.id for i in res_tuple_tmp[0]}
+            refreshed_items: List[Item] = select(
+                i for i in Item if i.id in item_ids
+            )[:][:]
+            return (refreshed_items, res_tuple_tmp[1], res_tuple_tmp[2])
 
         results: Any = func(*func_args, **kwargs)
         cache[key] = results
@@ -1061,7 +1065,7 @@ def get_ordered_items_and_filter_counts(
     return results
 
 
-@cached_items
+# @cached_items
 def get_all_items() -> Query:
     """Get all items as query with most fields prefetched.
 
