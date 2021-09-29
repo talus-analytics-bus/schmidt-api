@@ -8,7 +8,7 @@ jobs:
 
     steps:
       - checkout
-
+    
       - run:
           name: Installing deployment dependencies
           working_directory: /
@@ -26,12 +26,12 @@ jobs:
 
     steps:
       - checkout
-
+      - run: python --version
       - run:
           name: Installing deployment dependencies
           working_directory: /
           command: |
-            sudo pip install awsebcli --upgrade
+            pip install awsebcli --upgrade
 
       - run:
           name: Deploying
