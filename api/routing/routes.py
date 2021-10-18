@@ -182,10 +182,12 @@ class Item(Resource):
     @db_session
     @format_response
     def get(self):
+        id_tmp: str = request.args.get("id")
+        id: int = int(id_tmp) if id_tmp is not None else None
         data = schema.get_item(
             page=int(request.args.get("page", 1)),
             pagesize=int(request.args.get("pagesize", 10000000)),
-            id=int(request.args.get("id", 1)),
+            id=id,
             include_related=request.args.get("include_related", "false")
             == "true",
         )
