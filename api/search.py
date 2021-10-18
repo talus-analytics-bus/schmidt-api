@@ -28,7 +28,7 @@ def get_matching_instances(
 
         # special case: key topics, which are data field values, not entities
         # TODO modularize, reuse code
-        if class_name != "Key_Topic":
+        if class_name not in ("Key_Topic", "Tag"):
             matching_instances[class_name] = list()
             matches = list()
             if match_type not in ("exact-insensitive",):
@@ -91,7 +91,10 @@ def get_matching_instances(
                 matching_instances[class_name].sort(key=lambda x: x[field])
         else:
             # search through all used values for matches, then return
-            all_vals = select(i.key_topics.name for i in items)[:][:]
+            tag_field: str = to_check[class_name].get("tag_field")
+            if tag_field is None:
+                raise ValueError("Must define tag field for this entity.")
+            all_vals = select(getattr(i, tag_field).name for i in items)[:][:]
             if match_type not in ("exact-insensitive",):
                 raise NotImplementedError(
                     "Unsupported match type: " + match_type

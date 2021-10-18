@@ -386,6 +386,7 @@ def get_search(
             # tag fields
             # TODO
             fields_tag_str = (
+                ("covid_tags", "name"),
                 ("key_topics", "name"),
                 ("events", "name"),
             )
@@ -526,7 +527,7 @@ def apply_filters_to_items(
     Returns:
         Query: The filtered items query.
     """
-    tag_sets: tuple = ("key_topics",)
+    tag_sets: tuple = ("key_topics", "covid_tags")
     field: str = None
     for field in filters:
         allowed_values: List[Any] = filters[field]
@@ -536,7 +537,7 @@ def apply_filters_to_items(
             items = select(
                 i_filtered
                 for i_filtered in items
-                for j_topic in i_filtered.key_topics
+                for j_topic in getattr(i_filtered, field)
                 if j_topic.name in allowed_values
             ).prefetch(
                 db.Item.key_topics,
@@ -659,6 +660,7 @@ def apply_filters_to_items(
                 db.Item.key_topics,
                 db.Item.funders,
                 db.Item.authors,
+                db.Item.covid_tags,
                 db.Item.tags,
                 db.Item.files,
                 db.Item.events,
@@ -778,8 +780,14 @@ def get_matching_instances(
                 "items_query": lambda x: lambda i: x in i.events,
             },
             "Key_Topic": {
+                "tag_field": "key_topics",
                 "match_type": "exact-insensitive",
                 "items_query": lambda x: lambda i: x in i.key_topics.name,
+            },
+            "Tag": {
+                "tag_field": "covid_tags",
+                "match_type": "exact-insensitive",
+                "items_query": lambda x: lambda i: x in i.covid_tags.name,
             },
         }
         matching_instances = search.get_matching_instances(

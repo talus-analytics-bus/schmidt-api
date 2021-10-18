@@ -62,6 +62,10 @@ class MetadataCounter:
                 "link_field": "name",  # if present, will link from item
             },
             {
+                "field": "covid_tags",
+                "link_field": "name",  # if present, will link from item
+            },
+            {
                 "field": "authors",
                 "filter_field": "author.id",
                 "link_field": "authoring_organization",
