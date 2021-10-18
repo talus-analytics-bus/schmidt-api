@@ -376,7 +376,10 @@ class SchmidtPlugin(IngestPlugin):
                 a = db.Item[a_id]
                 for b_id in b_ids:
                     b = db.Item.get(source_id=b_id)
-                    a.items.add(b)
+                    if b is None:
+                        print("No record found with Airtable ID = " + b_id)
+                    else:
+                        a.items.add(b)
                 commit()
 
         # add date type
