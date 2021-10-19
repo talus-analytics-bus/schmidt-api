@@ -125,6 +125,12 @@ def get_items(
 
 
 @db_session
+def get_metadata() -> List[dict]:
+    res: List[Metadata] = select(i for i in Metadata)[:][:]
+    return [d.to_dict() for d in res]
+
+
+@db_session
 def get_item(
     page: int = 1,
     pagesize: int = 1000000,

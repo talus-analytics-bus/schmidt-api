@@ -165,7 +165,10 @@ class SchmidtPlugin(IngestPlugin):
                 "source_name": meta_row["Field"],
                 "display_name": meta_row["Display name"],
                 "colgroup": meta_row["Category"],
-                "definition": meta_row["Definition"],
+                "definition": meta_row["For site: Definition"],
+                "definition_short": meta_row[
+                    "For site: Short definition < 10 words"
+                ],
                 "possible_values": meta_row["Possible values"],
                 "export": meta_row["Export?"],
                 "type": meta_row["Type"],

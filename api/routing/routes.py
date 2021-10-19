@@ -194,6 +194,14 @@ class Item(Resource):
         return data
 
 
+@api.route("/get/metadata", methods=["GET"])
+class Metadata(Resource):
+    @db_session
+    @format_response
+    def get(self):
+        return schema.get_metadata()
+
+
 @api.route("/get/file/<title>", methods=["GET"])
 class File(Resource):
     # setup parser
