@@ -1,4 +1,6 @@
 version: 2.1
+orbs:
+  aws-cli: circleci/aws-cli@2.0.3
 jobs:
   deploy:
     working_directory: ~/repo
@@ -14,6 +16,7 @@ jobs:
 
     steps:
       - checkout
+      - aws-cli/install
       - run:
           name: Install deployment dependencies
           working_directory: /
