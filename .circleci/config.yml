@@ -1,28 +1,14 @@
 version: 2.1
 jobs:
-  deploy-prod:
+  deploy:
     working_directory: ~/repo
-
-    docker:
-      - image: cimg/python:3.7.10
-
-    steps:
-      - checkout
     
-      - run:
-          name: Installing deployment dependencies
-          working_directory: /
-          command: |
-            sudo pip install awsebcli --upgrade
-
-      - run:
-          name: Deploying
-          command: eb deploy schmidt-api-prod
-  deploy-preview:
-    working_directory: ~/repo
-
     docker:
       - image: cimg/python:3.7.10
+
+    parameters:
+      env:
+        type: string
 
     steps:
       - checkout
@@ -35,18 +21,20 @@ jobs:
 
       - run:
           name: Deploying
-          command: eb deploy schmidt-api-preview
+          command: eb deploy <<parameters.env>>
 
 workflows:
   version: 2
   build:
     jobs:
-      - deploy-prod:
+      - deploy:
+          env: 'schmidt-api-prod'
           filters:
             branches:
               only:
                 - master
-      - deploy-preview:
+      - deploy:
+          env: 'schmidt-api-preview'
           filters:
             branches:
               only:
