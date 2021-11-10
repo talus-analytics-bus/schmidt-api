@@ -9,19 +9,27 @@ jobs:
     parameters:
       env:
         type: string
+      distribution:
+        type: string
 
     steps:
       - checkout
-      - run: python --version
       - run:
-          name: Installing deployment dependencies
+          name: Install deployment dependencies
           working_directory: /
           command: |
             pip install awsebcli --upgrade
 
       - run:
-          name: Deploying
+          name: Deploy
           command: eb deploy <<parameters.env>>
+
+      - run:
+          name: Invalidate CloudFront cache
+          command: |
+            aws cloudfront create-invalidation \
+            --distribution-id <<parameters.distribution>> \
+            --paths "/*"
 
 workflows:
   version: 2
@@ -29,12 +37,14 @@ workflows:
     jobs:
       - deploy:
           env: 'schmidt-api-prod'
+          distribution: 'E3KCF50FO8RLIK'
           filters:
             branches:
               only:
                 - master
       - deploy:
           env: 'schmidt-api-preview'
+          distribution: 'E6J9FWVEWFDBG'
           filters:
             branches:
               only:
