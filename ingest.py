@@ -6,16 +6,17 @@ from os import sys
 from application import db
 from ingest import SchmidtPlugin
 
-if __name__ == "__main__":
+
+def main():
     # constants
     # airtable base ID (non-sensitive)
-    airtable_key = "appLd31oBE5L3Q3cs"
+    base_id = "appLd31oBE5L3Q3cs"
 
     # initialize db connection and plugin for ingest
     plugin = SchmidtPlugin()
 
     # update core policy data, if appropriate
-    client = plugin.load_client(airtable_key)
+    client = plugin.load_client(base_id)
 
     # update various entity instances
     client.clear_records(db)
@@ -33,3 +34,7 @@ if __name__ == "__main__":
 
     # exit
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

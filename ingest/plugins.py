@@ -1,6 +1,6 @@
 """Define project-specific methods for data ingestion."""
 # standard modules
-from pony.orm.core import Database
+from pony.orm.core import Database, Query
 from api.db_models.models import (
     CovidTag,
     CovidTopic,
@@ -16,9 +16,9 @@ from api.db_models.models import (
 import os
 from io import BytesIO
 from os import sys
-from datetime import datetime
+from datetime import  datetime
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, Set, Type, Union
+from typing import Any, DefaultDict, Dict, List, Set, Type, Union, Tuple
 
 # 3rd party modules
 import boto3
@@ -36,6 +36,7 @@ from .util import (
     get_s3_bucket_keys,
     set_date_types,
     S3_BUCKET_NAME,
+    get_suffixed_fn
 )
 import pandas as pd
 
@@ -1074,3 +1075,52 @@ class SchmidtPlugin(IngestPlugin):
             for name in dupe_names_formatted:
                 print("\t" + name)
             raise ValueError("All publishing org. names must be unique.")
+
+    @db_session
+    def get_number_new_items(
+        self, write: bool = True
+    ) -> Tuple[Set[int], Set[int]]:
+        """Return the number of new and deleted items in the dataset.
+
+        Returns:
+            Tuple[Set[int], Set[int]]: Ids of new items and deleted
+            items, respectively
+
+            write (bool, optional): True if the added and deleted IDs should be
+            written to a file. Defaults to True.
+
+        """
+
+        # get latest data
+        print("Fetching items...")
+        self.items = self.client.worksheet(
+            name="Schmidt dataset"
+        ).as_dataframe(view="API ingest")
+
+        latest_item_ids: Set[int] = set(
+            self.items.loc[:, "ID (automatically assigned)"]
+        )
+
+        # get current data
+        cur_item_ids_q: Query = select(i.id for i in Item)
+        cur_item_ids: Set[int] = set(cur_item_ids_q[:][:])
+
+        new_items: Set[int] = latest_item_ids - cur_item_ids
+        del_items: Set[int] = cur_item_ids - latest_item_ids
+        n_new_items: int = len(new_items)
+        n_del_items: int = len(del_items)
+
+        item_info: List[list] = [
+            ["new", new_items, n_new_items],
+            ["del", del_items, n_del_items],
+        ]
+
+        if write:
+            fn_suffix = get_suffixed_fn("_ids")
+            for kind, item_ids, n_item_ids in item_info:
+                if n_item_ids > 0:
+                    print(f"Writing {kind} IDs to file")
+                    with open(f"ingest/logs/{kind}{fn_suffix}", "a") as f:
+                        f.write("\n".join([str(v) for v in list(item_ids)]))
+
+        return (new_items, del_items)

@@ -1,5 +1,6 @@
 """Ingest utility methods"""
 # standard packages
+from datetime import date
 import urllib3
 import certifi
 
@@ -310,3 +311,17 @@ def set_date_types(db):
                 item.date_type = 2
             else:
                 item.date_type = 0
+
+
+def get_suffixed_fn(prefix: str, ext: str = "") -> str:
+    """Return filename consisting of prefix suffixed with today's date
+
+    Args:
+        prefix (str): The prefix
+
+    Returns:
+        str: The filename
+    """
+    today_date: str = str(date.today())
+    fn_suffix: str = prefix + "_" + today_date + ext
+    return fn_suffix
