@@ -6,6 +6,9 @@
 
 tmp/
 
+# env vars
+.env
+
 # Pipfile
 Pipfile.lock
 Pipfile
