@@ -7,7 +7,7 @@ from . import SchmidtPlugin
 from . import util
 
 
-def main(skip_if_no_new: bool = True):
+def main(stop_if_no_new_or_del: bool = True):
     """Run main data ingest.
 
     Args:
@@ -27,16 +27,19 @@ def main(skip_if_no_new: bool = True):
     client = plugin.load_client(base_id)
 
     # update various entity instances
-    if skip_if_no_new:
-        new_items, del_items = client.get_number_new_items()
-        if (len(new_items) + len(del_items)) == 0:
+    new_item_ids: Set[int] = set()
+    del_item_ids: Set[int] = set()
+    if stop_if_no_new_or_del:
+        new_item_ids, del_item_ids = client.get_new_and_del_item_ids()
+        if (len(new_item_ids) + len(del_item_ids)) == 0:
             print("No new items, halting ingest")
             os.sys.exit(0)
         else:
             print("Found new or deleted items, continuing ingest")
 
-    # write Excel of deleted items
-    write_items_xlsx(del_items)
+    # write Excel of deleted items if any
+    if len(del_item_ids) > 0:
+        write_items_xlsx(del_item_ids)
 
     client.clear_records(db)
     client.do_qaqc()
@@ -51,8 +54,9 @@ def main(skip_if_no_new: bool = True):
     # collate search text for each item from other metadata
     client.update_item_search_text(db)
 
-    # write Excel of new items
-    write_items_xlsx(new_items)
+    # write Excel of new items if any
+    if len(new_item_ids) > 0:
+        write_items_xlsx(new_item_ids)
 
     # exit
     os.sys.exit(0)

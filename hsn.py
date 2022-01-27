@@ -8,13 +8,16 @@ def hsn():
 
 
 @hsn.command()
-def ingest():
-
-    # skip if no new
-    skip_if_no_new: bool = True
+@click.option(
+    "--force",
+    default=False,
+    is_flag=True,
+    help="Forces ingest to be run even if no new items are found",
+)
+def ingest(force: bool = False):
 
     # run main ingest code
-    ingestmain(skip_if_no_new)
+    ingestmain(not force)
 
 
 if __name__ == "__main__":

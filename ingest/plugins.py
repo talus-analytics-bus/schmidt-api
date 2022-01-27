@@ -16,7 +16,7 @@ from api.db_models.models import (
 import os
 from io import BytesIO
 from os import sys
-from datetime import  datetime
+from datetime import datetime
 from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, Set, Type, Union, Tuple
 
@@ -36,7 +36,7 @@ from .util import (
     get_s3_bucket_keys,
     set_date_types,
     S3_BUCKET_NAME,
-    get_suffixed_fn
+    get_suffixed_fn,
 )
 import pandas as pd
 
@@ -1077,7 +1077,7 @@ class SchmidtPlugin(IngestPlugin):
             raise ValueError("All publishing org. names must be unique.")
 
     @db_session
-    def get_number_new_items(
+    def get_new_and_del_item_ids(
         self, write: bool = True
     ) -> Tuple[Set[int], Set[int]]:
         """Return the number of new and deleted items in the dataset.
