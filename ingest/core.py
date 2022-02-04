@@ -29,13 +29,13 @@ def main(stop_if_no_new_or_del: bool = True):
     # update various entity instances
     new_item_ids: Set[int] = set()
     del_item_ids: Set[int] = set()
-    if stop_if_no_new_or_del:
-        new_item_ids, del_item_ids = client.get_new_and_del_item_ids()
-        if (len(new_item_ids) + len(del_item_ids)) == 0:
-            print("No new items, halting ingest")
-            os.sys.exit(0)
-        else:
-            print("Found new or deleted items, continuing ingest")
+    new_item_ids, del_item_ids = client.get_new_and_del_item_ids()
+    no_new_or_del: bool = (len(new_item_ids) + len(del_item_ids)) == 0
+    if no_new_or_del and stop_if_no_new_or_del:
+        print("No new items, halting ingest")
+        os.sys.exit(0)
+    else:
+        print("Found new or deleted items, continuing ingest")
 
     # write Excel of deleted items if any
     if len(del_item_ids) > 0:
