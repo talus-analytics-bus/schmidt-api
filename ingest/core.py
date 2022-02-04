@@ -39,7 +39,7 @@ def main(stop_if_no_new_or_del: bool = True):
 
     # write Excel of deleted items if any
     if len(del_item_ids) > 0:
-        write_items_xlsx(del_item_ids)
+        write_items_xlsx(del_item_ids, "del")
 
     client.clear_records(db)
     client.do_qaqc()
@@ -56,7 +56,7 @@ def main(stop_if_no_new_or_del: bool = True):
 
     # write Excel of new items if any
     if len(new_item_ids) > 0:
-        write_items_xlsx(new_item_ids)
+        write_items_xlsx(new_item_ids, "new")
 
     # exit
     os.sys.exit(0)
