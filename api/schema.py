@@ -685,7 +685,7 @@ def apply_filters_to_items(
             items = select(
                 i_standard
                 for i_standard in items
-                if getattr(i_standard, field) in allowed_values
+                if str(getattr(i_standard, field)) in allowed_values
             ).prefetch(
                 db.Item.key_topics,
                 db.Item.funders,
