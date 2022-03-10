@@ -1,20 +1,21 @@
 # Standard libraries
 
 # Third party libraries
-from flask import request, send_file
-from flask_restplus import Resource
-from flask_restplus.api import Api
+from flask import request, send_file, Response
+from flask_restplus import Api, Resource
+
+# from flask_restplus.api import Api
 from pony.orm import db_session
 
 # Local libraries
 from api import schema
-from api.db import app
+from api.namespaces import namespaces, item, metadata, search, downloads, deprecated
+from api.main import app, api
+from api.routing.models import ItemBody
 from api.utils import format_response
 from api.metadatacounter.core import MetadataCounter
 
 
-# define API
-api = Api(app, version="1.0", title="Health Security Net API")
 
 
 def add_search_args(parser):
@@ -60,10 +61,10 @@ def add_pagination_args(parser):
 
     """
     parser.add_argument(
-        "page", type=int, required=False, help="""Page number"""
+        "page", type=int, required=False, help="""Optional: Page number. Defaults to null (no pagination)."""
     )
     parser.add_argument(
-        "pagesize", type=int, required=False, help="""Page size"""
+        "pagesize", type=int, required=False, help="""Optional: Page size. Defaults to null (no pagination)."""
     )
 
 
@@ -85,12 +86,14 @@ def add_ordering_args(parser):
         "order_by",
         type=str,
         required=False,
-        help="""Attribute to order by, currently date, title, or relevance""",
+        default=None,
+        choices=('date','title','relevance'),
+        help="""Optional: Attribute to order by, currently one of date, title, or relevance. Defaults to null (no ordering).""",
     )
     parser.add_argument(
         "is_desc",
         type=bool,
-        help="True if ordering should be descending order, false if ascending",
+        help="Optional: True if ordering should be descending order, false if ascending. Defaults to null (no ordering).",
     )
 
 
@@ -136,7 +139,14 @@ def get_int_list(str_list):
     return list(map(to_int, str_list))
 
 
-@api.route("/get/items", methods=["GET"])
+@deprecated.route(
+    "/get/items",
+    methods=["GET"],
+)
+@item.route(
+    "/items",
+    methods=["GET"],
+)
 class Items(Resource):
     # setup parser with pagination
     parser = api.parser()
@@ -145,11 +155,11 @@ class Items(Resource):
     add_pagination_args(parser)
     add_ordering_args(parser)
 
-    @api.doc(parser=parser)
+    @item.doc(parser=parser)
     @db_session
     @format_response
     def get(self):
-        # get ids of items from URL params
+        """Get lists of Items, optionally paginated."""
         ids = get_int_list(request.args.getlist("ids"))
 
         data = schema.get_items(
@@ -162,7 +172,24 @@ class Items(Resource):
         return data
 
 
-@api.route("/get/item", methods=["GET"])
+@item.route("/items/<id>", methods=["GET"])
+class Item(Resource):
+    # setup parser with pagination
+    parser = api.parser()
+    @api.doc(parser=parser, params={'id': "Unique ID of item to fetch."})
+    @db_session
+    @format_response
+    def get(self, id: int):
+        """Get detailed Item data by its ID."""
+        data = schema.get_item(
+            page=1,
+            pagesize=10000000,
+            id=id,
+            include_related=False,
+        )
+        return data
+    
+@deprecated.route("/get/item", methods=["GET"])
 class Item(Resource):
     # setup parser with pagination
     parser = api.parser()
@@ -194,29 +221,38 @@ class Item(Resource):
         return data
 
 
-@api.route("/get/metadata", methods=["GET"])
+@metadata.route("/metadata", methods=["GET"])
+@deprecated.route("/get/metadata", methods=["GET"], 
+           )
 class Metadata(Resource):
     @db_session
     @format_response
     def get(self):
+        """Get codelist possible values and their definitions.
+        """        
         return schema.get_metadata()
 
 
-@api.route("/get/file/<title>", methods=["GET"])
+@downloads.route("/file/<title>", methods=["GET"])
+@deprecated.route("/get/file/<title>", methods=["GET"])
 class File(Resource):
     # setup parser
     parser = api.parser()
     parser.add_argument(
-        "id", type=int, required=False, help="""Unique ID of file to fetch"""
+        "id", type=int, required=True, help="""Unique ID of file to fetch"""
     )
 
-    @api.doc(parser=parser)
+    @api.doc(parser=parser, params={"title": "The title to download the File with"})
     @db_session
     def get(self, title: str):
-        details = schema.get_file(
-            id=int(request.args.get("id", 1)),
-            get_thumb=request.args.get("get_thumb", "false") == "true",
-        )
+        """Download the File with the given ID using the provided title"""
+        try:
+            details = schema.get_file(
+                id=int(request.args.get("id", 1)),
+                get_thumb=request.args.get("get_thumb", "false") == "true",
+            )
+        except Exception:
+            return Response("No File found with that ID", status=404)
         data = details["data"]
         data.seek(0)
         return send_file(
@@ -226,16 +262,16 @@ class File(Resource):
         )
 
 
-@api.route("/get/search", methods=["POST"])
+@search.route("/search", methods=["POST"])
+@deprecated.route("/get/search", methods=["POST"])
 class Search(Resource):
-    """Get search results or preview of them."""
 
     parser = api.parser()
     parser.add_argument(
         "preview",
         type=bool,
         required=False,
-        help="If True, preview of search results only, with counts of items",
+        help="If True, preview of search results only, with counts of Items rather than Item data",
     )
     # add search text arg
     add_search_args(parser)
@@ -246,10 +282,11 @@ class Search(Resource):
     # add ordering (sorting) arguments to parser
     add_ordering_args(parser)
 
-    @api.doc(parser=parser, body=body_model)
+    @api.doc(parser=parser, body=ItemBody)
     @db_session
     @format_response
     def post(self):
+        """Get search results or preview of them."""
         # get request body containing filters
         body = request.get_json()
         filters = body["filters"] if "filters" in body else {}
@@ -272,9 +309,9 @@ class Search(Resource):
         )
 
 
-@api.route("/get/filter_counts", methods=["GET"])
+@search.route("/search/counts", methods=["GET"])
+@deprecated.route("/get/filter_counts", methods=["GET"])
 class Filter_Counts(Resource):
-    """Get possible filter values and baseline number of each in dataset."""
 
     parser = api.parser()
 
@@ -282,6 +319,7 @@ class Filter_Counts(Resource):
     @db_session
     @format_response
     def get(self):
+        """Given search text, get count of results by filter attribute."""
 
         # get search text if any
         search_text = request.args.get("search_text", None)
@@ -295,16 +333,16 @@ class Filter_Counts(Resource):
 
 
 # XLSX download of items data
-@api.route("/export/excel", methods=["GET"])
-@api.route("/get/export/excel", methods=["GET"])
+@downloads.route("/items/xlsx", methods=["GET"])
+@deprecated.route("/get/export/excel", methods=["GET"])
 class ExportExcelGet(Resource):
-    """Return XLSX file of data with specified filters applied."""
 
     parser = api.parser()
 
     @api.doc(parser=parser)
     @db_session
     def get(self):
+        """Return XLSX file of data with specified filters applied."""
 
         params = request.args
 
@@ -324,19 +362,16 @@ class ExportExcelGet(Resource):
         )
 
 
-# XLSX download of items data
-
-
-@api.route("/post/export/excel", methods=["POST"])
+@downloads.route("/items/xlsx", methods=["POST"])
+@deprecated.route("/post/export/excel", methods=["POST"])
 class ExportExcelPost(Resource):
-    """Return XLSX file of data with specified filters applied."""
 
     parser = api.parser()
 
     @api.doc(parser=parser)
     @db_session
     def post(self):
-        """Get exported XLS with items matching body `filters`."""
+        """Return XLSX file of data with specified filters applied."""
 
         # get request body containing filters
         params = request.args

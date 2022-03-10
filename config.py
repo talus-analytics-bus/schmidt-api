@@ -139,8 +139,7 @@ class Config:
         print('')
 
         # Define database engine based on db connection parameters.
-        self.engine = create_engine(f"postgresql+psycopg2://{self.db['username']}:{self.db['password']}@{self.db['host']}:5432/{self.db['database']}",
-                                    use_batch_mode=True)
+        self.engine = create_engine(f"postgresql+psycopg2://{self.db['username']}:{self.db['password']}@{self.db['host']}:5432/{self.db['database']}")
 
         # Debug mode is not used.
         self.debug = False

@@ -539,13 +539,30 @@ def apply_filters_to_items(
         allowed_values: List[Any] = filters[field]
 
         # filters items by Tag attributes
-        if field in tag_sets:
+        if field == "key_topics":
             items = select(
-                i_filtered
-                for i_filtered in items
-                for j_topic in getattr(i_filtered, field)
-                if j_topic.name in allowed_values
+                i_key_topics
+                for i_key_topics in items
+                for key_topic in i_key_topics.key_topics
+                if key_topic.name in allowed_values
             ).prefetch(
+                db.Item.covid_tags,
+                db.Item.key_topics,
+                db.Item.funders,
+                db.Item.authors,
+                db.Item.tags,
+                db.Item.files,
+                db.Item.events,
+                db.Item.items,
+            )
+        elif field == "covid_tags":
+            items = select(
+                i_covid_tags
+                for i_covid_tags in items
+                for j_covid_tag in i_covid_tags.covid_tags
+                if j_covid_tag.name in allowed_values
+            ).prefetch(
+                db.Item.covid_tags,
                 db.Item.key_topics,
                 db.Item.funders,
                 db.Item.authors,
