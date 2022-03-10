@@ -10,7 +10,7 @@ tmp/
 .env
 
 # Pipfile
-Pipfile.lock
+# Pipfile.lock
 Pipfile
 
 # Backup databases
