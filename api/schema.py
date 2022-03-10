@@ -536,6 +536,7 @@ def apply_filters_to_items(
     tag_sets: tuple = ("key_topics", "covid_tags")
     field: str = None
     for field in filters:
+        allowed_values: List[Any] = [str(v) for v in filters[field]]
         if len(allowed_values) == 0:
             continue
 
