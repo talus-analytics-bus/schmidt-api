@@ -533,7 +533,7 @@ def apply_filters_to_items(
     Returns:
         Query: The filtered items query.
     """
-    tag_sets: tuple = ("key_topics", "covid_tags")
+    # tag_sets: tuple = ("key_topics", "covid_tags")
     field: str = None
     for field in filters:
         allowed_values: List[Any] = [str(v) for v in filters[field]]
