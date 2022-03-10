@@ -645,7 +645,7 @@ def apply_filters_to_items(
                 )
         # special: years
         elif field == "years":
-            if "range" not in allowed_values[0]:
+            if not allowed_values[0].startswith("range"):
                 items = select(
                     i_years
                     for i_years in items
