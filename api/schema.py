@@ -663,6 +663,11 @@ def apply_filters_to_items(
                 range = allowed_values[0].split("_")[1:3]
                 start = int(range[0]) if range[0] != "null" else 0
                 end = int(range[1]) if range[1] != "null" else 9999
+                if start > end:
+                    raise ValueError(
+                        f"Start year ({start}) must be less than or equal to"
+                        f" end year ({end})"
+                    )
                 items = select(
                     i_range
                     for i_range in items
