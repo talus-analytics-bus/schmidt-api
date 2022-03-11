@@ -2,20 +2,18 @@
 
 # Third party libraries
 from flask import request, send_file, Response
-from flask_restplus import Api, Resource
+from flask_restplus import Resource
 
 # from flask_restplus.api import Api
 from pony.orm import db_session
 
 # Local libraries
 from api import schema
-from api.namespaces import namespaces, item, metadata, search, downloads, deprecated
+from api.namespaces import item, metadata, search, downloads, deprecated
 from api.main import app, api
-from api.routing.models import ItemBody
+from api.routing.models import ItemBody, SearchResponse
 from api.utils import format_response
 from api.metadatacounter.core import MetadataCounter
-
-
 
 
 def add_search_args(parser):
@@ -61,10 +59,16 @@ def add_pagination_args(parser):
 
     """
     parser.add_argument(
-        "page", type=int, required=False, help="""Optional: Page number. Defaults to null (no pagination)."""
+        "page",
+        type=int,
+        required=False,
+        help="""Optional: Page number. Defaults to null (no pagination).""",
     )
     parser.add_argument(
-        "pagesize", type=int, required=False, help="""Optional: Page size. Defaults to null (no pagination)."""
+        "pagesize",
+        type=int,
+        required=False,
+        help="""Optional: Page size. Defaults to null (no pagination).""",
     )
 
 
@@ -87,7 +91,7 @@ def add_ordering_args(parser):
         type=str,
         required=False,
         default=None,
-        choices=('date','title','relevance'),
+        choices=("date", "title", "relevance"),
         help="""Optional: Attribute to order by, currently one of date, title, or relevance. Defaults to null (no ordering).""",
     )
     parser.add_argument(
@@ -176,7 +180,8 @@ class Items(Resource):
 class Item(Resource):
     # setup parser with pagination
     parser = api.parser()
-    @api.doc(parser=parser, params={'id': "Unique ID of item to fetch."})
+
+    @api.doc(parser=parser, params={"id": "Unique ID of item to fetch."})
     @db_session
     @format_response
     def get(self, id: int):
@@ -188,7 +193,8 @@ class Item(Resource):
             include_related=False,
         )
         return data
-    
+
+
 @deprecated.route("/get/item", methods=["GET"])
 class Item(Resource):
     # setup parser with pagination
@@ -222,14 +228,15 @@ class Item(Resource):
 
 
 @metadata.route("/metadata", methods=["GET"])
-@deprecated.route("/get/metadata", methods=["GET"], 
-           )
+@deprecated.route(
+    "/get/metadata",
+    methods=["GET"],
+)
 class Metadata(Resource):
     @db_session
     @format_response
     def get(self):
-        """Get codelist possible values and their definitions.
-        """        
+        """Get codelist possible values and their definitions."""
         return schema.get_metadata()
 
 
@@ -242,7 +249,9 @@ class File(Resource):
         "id", type=int, required=True, help="""Unique ID of file to fetch"""
     )
 
-    @api.doc(parser=parser, params={"title": "The title to download the File with"})
+    @api.doc(
+        parser=parser, params={"title": "The title to download the File with"}
+    )
     @db_session
     def get(self, title: str):
         """Download the File with the given ID using the provided title"""
@@ -271,7 +280,8 @@ class Search(Resource):
         "preview",
         type=bool,
         required=False,
-        help="If True, preview of search results only, with counts of Items rather than Item data",
+        help="If True, preview of search results only, with counts of Items"
+        " rather than Item data",
     )
     # add search text arg
     add_search_args(parser)
@@ -282,7 +292,16 @@ class Search(Resource):
     # add ordering (sorting) arguments to parser
     add_ordering_args(parser)
 
-    @api.doc(parser=parser, body=ItemBody)
+    @api.doc(
+        parser=parser,
+        body=ItemBody,
+        responses={
+            "200": (
+                "Pagination information and a list of Items will be returned.",
+                SearchResponse,
+            )
+        },
+    )
     @db_session
     @format_response
     def post(self):

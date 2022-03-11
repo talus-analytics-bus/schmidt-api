@@ -74,3 +74,18 @@ ItemBody = api.model(
         "filters": fields.Nested(ItemFilter),
     },
 )
+
+
+SearchResponse = api.model(
+    "SearchResponse",
+    {
+        "page": fields.Integer(),
+        "pagesize": fields.Integer(),
+        "num_pages": fields.Integer(),
+        "total": fields.Integer(
+            description="The total number of Items (not just on this page)"
+        ),
+        "num": fields.Integer(description="Same as `total`"),
+        "data": fields.List(cls_or_instance=fields.Arbitrary(), example=[{}]),
+    },
+)
