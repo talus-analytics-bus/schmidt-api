@@ -16,6 +16,15 @@ from api.utils import format_response
 from api.metadatacounter.core import MetadataCounter
 
 
+def add_search_text_arg(parser):
+    parser.add_argument(
+        "search_text",
+        type=str,
+        required=False,
+        help="""Search string to query matches with""",
+    )
+
+
 def add_search_args(parser):
     """Add search text arguments to `parser`.
 
@@ -30,12 +39,7 @@ def add_search_args(parser):
         Description of returned object.
 
     """
-    parser.add_argument(
-        "search_text",
-        type=str,
-        required=False,
-        help="""Search string to query matches with""",
-    )
+    add_search_text_arg(parser)
     parser.add_argument(
         "explain_results",
         type=bool,
@@ -333,6 +337,8 @@ class Search(Resource):
 class Filter_Counts(Resource):
 
     parser = api.parser()
+
+    add_search_text_arg(parser)
 
     @api.doc(parser=parser)
     @db_session
