@@ -22,15 +22,9 @@ api = Api(
     title="Health Security Net application programming interface"
     " (API) documentation",
     contact_url="https://healthsecuritynet.org",
-    description=(
-        """This API is consumed by the Health Security Net site"""
-        """ at <a target="_blank" href="https://healthsecuritynet.org">"""
-        """https://healthsecuritynet.org</a>.
-        
-        Note: Response models are not yet publicly available. If you have questions about this API, please contact us at <a href="mailto:info@talusanalytics.com">info@talusanalytics.com</a>.
-        
-        If you have other questions, comments, or accessibility issues, please contact us at <a href="https://healthsecuritynet.org/contact/">https://healthsecuritynet.org/contact/</a>."""
-    ),
+    description="""<p>This API is consumed by the Health Security Net site at <a target="_blank" href="https://healthsecuritynet.org">https://healthsecuritynet.org</a>. Note: Response models are not yet publicly available.</p>
+    <p>If you have questions about this API, please contact us at <a href="mailto:info@talusanalytics.com">info@talusanalytics.com</a>.</p>
+    <p>If you have other questions, comments, or accessibility issues, please contact us at <a href="https://healthsecuritynet.org/contact/">https://healthsecuritynet.org/contact/</a>.</p>""",
 )
 
 try:
