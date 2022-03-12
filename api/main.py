@@ -25,7 +25,11 @@ api = Api(
     description=(
         """This API is consumed by the Health Security Net site"""
         """ at <a target="_blank" href="https://healthsecuritynet.org">"""
-        """https://healthsecuritynet.org</a>.<br/><br/>Note: Response models are not currently publicly available, and only exist in the form of TypeScript interfaces in the frontend source code (non-public). If you have any accessibility issues or questions about the data, please contact us at <a href="https://healthsecuritynet.org/contact/">https://healthsecuritynet.org/contact/</a>."""
+        """https://healthsecuritynet.org</a>.
+        
+        Note: Response models are not yet publicly available. If you have questions about this API, please contact us at <a href="mailto:info@talusanalytics.com">info@talusanalytics.com</a>.
+        
+        If you have other questions, comments, or accessibility issues, please contact us at <a href="https://healthsecuritynet.org/contact/">https://healthsecuritynet.org/contact/</a>."""
     ),
 )
 
