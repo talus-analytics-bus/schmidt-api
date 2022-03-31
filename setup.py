@@ -1,4 +1,4 @@
-from setuptools import setup, find_namespace_packages
+from setuptools import setup, find_packages
 
 setup(
     name="hsn",
@@ -7,8 +7,6 @@ setup(
     author="Mike Van Maele",
     author_email="mvanmaele@talusanalytics.com",
     entry_points={"console_scripts": ["hsn = cli.hsn:app"]},
-    packages=find_namespace_packages(
-        where=".", include=["api.*", "cli.*", "db.*", "ingest.*"]
-    ),
+    packages=find_packages(where="."),
     # scripts=["sh/*.sh"],
 )
