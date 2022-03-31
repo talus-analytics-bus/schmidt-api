@@ -18,7 +18,7 @@ def main(stop_if_no_new_or_del: bool = True):
 
     # constants
     # airtable base ID (non-sensitive)
-    base_id = "appLd31oBE5L3Q3cs"
+    base_id = os.environ["AIRTABLE_BASE_ID"]
 
     # initialize db connection and plugin for ingest
     plugin = SchmidtPlugin()
