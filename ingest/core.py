@@ -5,6 +5,7 @@ from application import db
 from api import schema
 from . import SchmidtPlugin
 from . import util
+from cli.update import preview
 
 
 def main(stop_if_no_new_or_del: bool = True):

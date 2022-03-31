@@ -2,23 +2,15 @@ import click
 from ingest import main as ingestmain
 
 
-@click.group()
-def hsn():
-    pass
-
-
-@hsn.command()
+@click.command(help="Ingest data locally")
 @click.option(
     "--force",
+    "-f",
     default=False,
     is_flag=True,
     help="Forces ingest to be run even if no new items are found",
 )
-def ingest(force: bool = False):
+def ingest(force: bool = False, update_preview: bool = True):
 
     # run main ingest code
     ingestmain(not force)
-
-
-if __name__ == "__main__":
-    hsn(obj={})
