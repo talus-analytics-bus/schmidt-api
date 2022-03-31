@@ -37,3 +37,6 @@ venv
 
 # local user files
 local/
+
+# database backups
+db/backups
