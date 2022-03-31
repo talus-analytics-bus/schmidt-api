@@ -10,5 +10,5 @@ setup(
     packages=find_namespace_packages(
         where=".", include=["api.*", "cli.*", "db.*", "ingest.*"]
     ),
-    data_files=["sh/*.sh"],
+    scripts=["sh/*.sh"],
 )
