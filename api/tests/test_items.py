@@ -10,7 +10,7 @@ from pony.orm.core import count
 
 # local modules
 from api.db_models.models import Item
-from api.db import db
+from db.db import db
 
 
 def generate_mapping(func: Callable) -> Callable:
@@ -38,13 +38,10 @@ def generate_mapping(func: Callable) -> Callable:
 @generate_mapping
 def test_final_review():
     """Only allow items that have passed final review."""
-    invalid_items: List[Item] = (
-        select(i for i in Item if not i.final_review)
-    )[:][:]
+    invalid_items: List[Item] = (select(i for i in Item if not i.final_review))[:][:]
     try:
         assert len(invalid_items) == 0, (
-            str(len(invalid_items)) + " item(s) have not cleared "
-            "final review"
+            str(len(invalid_items)) + " item(s) have not cleared " "final review"
         )
     except AssertionError:
         raise InvalidItemsError(
@@ -59,11 +56,7 @@ def test_final_review():
 def test_title_and_desc():
     """Only allow items that have titles and descriptions."""
     invalid_items: List[Item] = (
-        select(
-            i
-            for i in Item
-            if i.title.strip() == "" or i.description.strip() == ""
-        )
+        select(i for i in Item if i.title.strip() == "" or i.description.strip() == "")
     )[:][:]
     try:
         assert len(invalid_items) == 0, (
@@ -115,8 +108,7 @@ def test_covid_expansion():
     )[:][:]
     try:
         assert len(invalid_items) == 0, (
-            str(len(invalid_items)) + " item(s) include COVID tags which "
-            "should not"
+            str(len(invalid_items)) + " item(s) include COVID tags which " "should not"
         )
     except AssertionError:
         raise InvalidItemsError(

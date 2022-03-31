@@ -1,5 +1,5 @@
 from api.main import app as application
-from api.db import db
+from db.db import db
 
 # load API
 from api.routing.routes import api  # noqa: F401

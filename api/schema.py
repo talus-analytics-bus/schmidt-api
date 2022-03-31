@@ -18,7 +18,7 @@ from pony.orm.core import Query
 
 # Local libraries
 from api.db_models.models import Item, Metadata, Glossary
-from api.db import db
+from db.db import db
 from . import search
 from .export import SchmidtExportPlugin
 from .utils import is_listlike, jsonify_response, DefaultOrderedDict
@@ -81,9 +81,9 @@ def cached_items(func: Callable) -> Any:
             # get items by id
             res_tuple_tmp: Any = cache[key]
             item_ids: Set[int] = {i.id for i in res_tuple_tmp[0]}
-            refreshed_items: List[Item] = select(
-                i for i in Item if i.id in item_ids
-            )[:][:]
+            refreshed_items: List[Item] = select(i for i in Item if i.id in item_ids)[
+                :
+            ][:]
             return (refreshed_items, res_tuple_tmp[1], res_tuple_tmp[2])
 
         results: Any = func(*func_args, **kwargs)
@@ -102,9 +102,7 @@ def get_items(
     order_by: str = "date",
 ):
     # get all items
-    selected_items = select(
-        i for i in db.Item if (len(ids) == 0 or i.id in ids)
-    )
+    selected_items = select(i for i in db.Item if (len(ids) == 0 or i.id in ids))
 
     # order items
     ordered_items = apply_ordering_to_items(selected_items, order_by, is_desc)
@@ -171,17 +169,12 @@ def get_item(
 
         # get all items directly related
         related_directly = select(
-            i
-            for i in db.Item
-            for tag in db.KeyTopic
-            if i in item.items and i != item
+            i for i in db.Item for tag in db.KeyTopic if i in item.items and i != item
         )
 
         # up to 10 items related by topic
         max_related_to_select = (
-            0
-            if related_directly.count() >= 10
-            else 10 - related_directly.count()
+            0 if related_directly.count() >= 10 else 10 - related_directly.count()
         )
         related_by_topic = select(
             i
@@ -195,9 +188,7 @@ def get_item(
 
         # concatenate and sort directly related items to appear first
         all_related = select(
-            i
-            for i in db.Item
-            if i in related_directly or i in related_by_topic
+            i for i in db.Item if i in related_directly or i in related_by_topic
         ).order_by(lambda x: x not in item.items)
 
         # get grand total
@@ -360,9 +351,7 @@ def get_search(
         and search_text is not None
         and search_text != ""
     ):
-        cur_search_text = (
-            search_text.lower() if search_text is not None else ""
-        )
+        cur_search_text = search_text.lower() if search_text is not None else ""
 
         # TODO reuse code in search.py
         pattern = re.compile(cur_search_text, re.IGNORECASE)
@@ -401,17 +390,13 @@ def get_search(
                 if type(value) == str:
                     if cur_search_text in value.lower():
                         at_least_one = True
-                        snippets[field] = re.sub(
-                            pattern, repl, getattr(d, field)
-                        )
+                        snippets[field] = re.sub(pattern, repl, getattr(d, field))
                 else:
                     matches = list()
                     for v in value:
                         if cur_search_text in v.lower():
                             at_least_one = True
-                            matches.append(
-                                {"name": re.sub(pattern, repl, v), "id": v}
-                            )
+                            matches.append({"name": re.sub(pattern, repl, v), "id": v})
                     if len(matches) > 0:
                         snippets[field] = matches
 
@@ -426,17 +411,12 @@ def get_search(
                 entity_name = arr_tmp[0]
                 field = arr_tmp[1]
                 for linked_instance in getattr(d, entity_name):
-                    if (
-                        cur_search_text
-                        in getattr(linked_instance, field).lower()
-                    ):
+                    if cur_search_text in getattr(linked_instance, field).lower():
                         at_least_one = True
 
                         # if the field is the author's acronym, count this as
                         # a match with the entire author's name
-                        count_as_entire_author_name = (
-                            field_tmp == "authors.acronym"
-                        )
+                        count_as_entire_author_name = field_tmp == "authors.acronym"
 
                         # get value of match
                         value = (
@@ -459,9 +439,7 @@ def get_search(
                         if not count_as_entire_author_name:
                             cur_snippet[field] = re.sub(pattern, repl, value)
                         else:
-                            cur_snippet[
-                                field
-                            ] = f"""<highlight>{value}</highlight>"""
+                            cur_snippet[field] = f"""<highlight>{value}</highlight>"""
 
                         cur_snippet["id"] = linked_instance.id
                         snippets[entity_name].append(cur_snippet)
@@ -472,10 +450,7 @@ def get_search(
                 snippets["tags"] = "Search tags contain text match"
 
             # pdf?
-            if (
-                d.file_search_text is not None
-                and cur_search_text in d.file_search_text
-            ):
+            if d.file_search_text is not None and cur_search_text in d.file_search_text:
                 at_least_one = True
                 snippets["files"] = "PDF file contains text match"
 
@@ -768,13 +743,9 @@ def apply_ordering_to_items(
 
         # put nulls last always
         if order_by == "date":
-            items = items.order_by(
-                raw_sql(f"""i.date {desc_text} NULLS LAST""")
-            )
+            items = items.order_by(raw_sql(f"""i.date {desc_text} NULLS LAST"""))
         elif order_by == "title":
-            items = items.order_by(
-                raw_sql(f"""i.title {desc_text} NULLS LAST""")
-            )
+            items = items.order_by(raw_sql(f"""i.title {desc_text} NULLS LAST"""))
 
     return items
 
@@ -932,9 +903,7 @@ def write_field_val_to_excel_row(
 
     # non-linked fields: format as needed
     if not is_linked:
-        excel_row[meta.colgroup][meta.display_name] = get_formatted_val(
-            item, meta
-        )
+        excel_row[meta.colgroup][meta.display_name] = get_formatted_val(item, meta)
 
     # special case: related files URLs
     elif meta.field == "related_s3_permalink":
@@ -955,9 +924,7 @@ def write_field_val_to_excel_row(
 @db_session
 @cached
 @jsonify_response
-def get_export_data(
-    filters: dict = None, search_text: str = None
-) -> List[dict]:
+def get_export_data(filters: dict = None, search_text: str = None) -> List[dict]:
     """Returns items that match the filters for export.
 
     Args:
@@ -1019,9 +986,7 @@ def get_export_legend_data() -> List[DefaultOrderedDict]:
         defs_row_text[meta.colgroup][meta.display_name] = meta.definition
 
         # possible values
-        poss_vals_row_text[meta.colgroup][
-            meta.display_name
-        ] = meta.possible_values
+        poss_vals_row_text[meta.colgroup][meta.display_name] = meta.possible_values
 
     return [defs_row_text, poss_vals_row_text]
 
@@ -1066,9 +1031,7 @@ def get_ordered_items_and_filter_counts(
     all_items: Query = get_all_items()
 
     # filter items
-    filtered_items: Query = apply_filters_to_items(
-        all_items, filters, search_text
-    )
+    filtered_items: Query = apply_filters_to_items(all_items, filters, search_text)
 
     # if search text not null and not preview: get matching instances by class
     other_instances: Dict[str, list] = (
@@ -1129,6 +1092,4 @@ def get_glossary() -> List[Glossary]:
     Returns:
         List[Glossary]: List of glossary instances.
     """
-    return db.Glossary.select().order_by(
-        db.Glossary.colname, db.Glossary.term
-    )[:][:]
+    return db.Glossary.select().order_by(db.Glossary.colname, db.Glossary.term)[:][:]

@@ -9,7 +9,7 @@ from datetime import date
 from pony.orm import PrimaryKey, Required, Optional, Set
 from pony.orm.core import db_session, select
 from pony.utils.utils import count
-from api.db import db
+from db.db import db
 
 
 class Item(db.Entity):
@@ -34,9 +34,7 @@ class Item(db.Entity):
     final_review = Optional(bool, default=False)
     search_text = Optional(str)
     file_search_text = Optional(str)
-    authoring_organization_has_governance_authority = Optional(
-        bool, nullable=True
-    )
+    authoring_organization_has_governance_authority = Optional(bool, nullable=True)
     source_id = Optional(str)
     tags = Set("Tag")
     exclude_pdf_from_site = Required(bool, default=False)
@@ -53,9 +51,7 @@ class Item(db.Entity):
     funders = Set("Funder", table="funders_to_items")
     events = Set("Event", table="events_to_items")
     files = Set("File", table="files_to_items", reverse="items")
-    related_files = Set(
-        "File", table="related_files_to_items", reverse="related_items"
-    )
+    related_files = Set("File", table="related_files_to_items", reverse="related_items")
     items = Set("Item", table="items_to_items", reverse="_items")
     _items = Set("Item", table="items_to_items")
 
