@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import Set
 
 from application import db
@@ -34,7 +35,7 @@ def main(stop_if_no_new_or_del: bool = True):
     no_new_or_del: bool = (len(new_item_ids) + len(del_item_ids)) == 0
     if no_new_or_del and stop_if_no_new_or_del:
         print("No new items, halting ingest")
-        os.sys.exit(0)
+        sys.exit(0)
     else:
         print("Found new or deleted items, continuing ingest")
 
@@ -60,7 +61,7 @@ def main(stop_if_no_new_or_del: bool = True):
         write_items_xlsx(new_item_ids, "new")
 
     # exit
-    os.sys.exit(0)
+    sys.exit(0)
 
 
 def write_items_xlsx(
