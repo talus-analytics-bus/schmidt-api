@@ -10,7 +10,7 @@ from ingest import main as ingestmain
     is_flag=True,
     help="Forces ingest to be run even if no new items are found",
 )
-def ingest(force: bool = False, update_preview: bool = True):
+def ingest(force: bool = False):
 
     # run main ingest code
     ingestmain(not force)
