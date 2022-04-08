@@ -1,7 +1,5 @@
 import subprocess
 
-from cli.options import validate_preview_or_prod
-
 
 def update_database(username: str, to_db: str, from_db: str):
     """Update remote database with local."""
