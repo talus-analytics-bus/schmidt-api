@@ -199,7 +199,7 @@ class Item(Resource):
 
 
 @deprecated.route("/get/item", methods=["GET"])
-class Item(Resource):
+class ItemOld(Resource):
     # setup parser with pagination
     parser = api.parser()
 

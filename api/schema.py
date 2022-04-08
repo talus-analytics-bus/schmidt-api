@@ -15,6 +15,7 @@ import boto3
 import pprint
 from pony.orm import select, db_session, raw_sql, count
 from pony.orm.core import Query
+from flask import Response
 
 # Local libraries
 from api.db_models.models import Item, Metadata, Glossary
@@ -153,7 +154,10 @@ def get_item(
     # get item by id or first item if no id
     item: Item = None
     if id is not None:
-        item = db.Item[id]
+        try:
+            item = db.Item[id]
+        except Exception as e:
+            return Response(None, status=404)
     else:
         item = select(i for i in Item).first()
 
