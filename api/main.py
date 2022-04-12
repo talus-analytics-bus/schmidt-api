@@ -31,7 +31,4 @@ try:
     for ns in namespaces:
         api.add_namespace(ns)
 except Exception:
-    print(
-        "Could not add namespaces, assuming they are already added"
-        " and continuing"
-    )
+    print("Could not add namespaces, assuming they are already added" " and continuing")
