@@ -1,8 +1,32 @@
 """Helpers for test_items.py"""
 
 
-from typing import List
+import functools
+from typing import Union, List, Callable, Any
+
 from api.db_models.models import Item
+from db.db import db
+
+
+def generate_mapping(func: Callable) -> Callable:
+    """Decorator func that ensures PonyORM database mapping is generated.
+
+    Args:
+        func (Callable): The function decorated.
+
+    Returns:
+        Callable: The wrapped function.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs) -> Union[Any, None]:
+        try:
+            db.generate_mapping()
+        except Exception:
+            print("Mapping already generated, continuing.")
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 class InvalidItemsError(AssertionError):
