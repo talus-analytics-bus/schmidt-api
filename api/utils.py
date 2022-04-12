@@ -188,6 +188,10 @@ def format_response(func):
             # get unformatted data
             unformattedData = func(*args, **kwargs)
 
+            # return response objects as-is
+            if isinstance(unformattedData, Response):
+                return unformattedData
+
             # Init formatted data.
             formattedData = []
 

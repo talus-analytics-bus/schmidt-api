@@ -114,8 +114,7 @@ body_model = api.schema_model(
                 "$id": "#/properties/filters",
                 "type": "object",
                 "title": "The filters schema",
-                "description": "An explanation about the purpose of "
-                "this instance.",
+                "description": "An explanation about the purpose of " "this instance.",
                 "default": {"search_text": ["acad"]},
                 "examples": [{"search_text": ["acad"]}],
                 "required": [],
@@ -200,7 +199,7 @@ class Item(Resource):
 
 
 @deprecated.route("/get/item", methods=["GET"])
-class Item(Resource):
+class ItemOld(Resource):
     # setup parser with pagination
     parser = api.parser()
 
@@ -225,8 +224,7 @@ class Item(Resource):
             page=int(request.args.get("page", 1)),
             pagesize=int(request.args.get("pagesize", 10000000)),
             id=id,
-            include_related=request.args.get("include_related", "false")
-            == "true",
+            include_related=request.args.get("include_related", "false") == "true",
         )
         return data
 
@@ -253,9 +251,7 @@ class File(Resource):
         "id", type=int, required=True, help="""Unique ID of file to fetch"""
     )
 
-    @api.doc(
-        parser=parser, params={"title": "The title to download the File with"}
-    )
+    @api.doc(parser=parser, params={"title": "The title to download the File with"})
     @db_session
     def get(self, title: str):
         """Download the File with the given ID using the provided title"""
@@ -327,8 +323,7 @@ class Search(Resource):
             order_by=request.args.get("order_by", None),
             is_desc=request.args.get("is_desc", "false") == "true",
             preview=request.args.get("preview", "false") == "true",
-            explain_results=request.args.get("explain_results", "false")
-            == "true",
+            explain_results=request.args.get("explain_results", "false") == "true",
         )
 
 

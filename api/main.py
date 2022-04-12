@@ -15,6 +15,14 @@ app.config["SWAGGER_UI_REQUEST_DURATION"] = True
 app.config["RESTPLUS_MASK_SWAGGER"] = False
 app.config["pg_config"] = {}
 
+
+# @app.after_request
+# def add_header(response):
+#     response.cache_control.max_age = 3
+#     print("called add_header")
+#     return response
+
+
 # define API
 api = Api(
     app,
@@ -31,7 +39,4 @@ try:
     for ns in namespaces:
         api.add_namespace(ns)
 except Exception:
-    print(
-        "Could not add namespaces, assuming they are already added"
-        " and continuing"
-    )
+    print("Could not add namespaces, assuming they are already added" " and continuing")
