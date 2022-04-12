@@ -995,8 +995,8 @@ def get_export_legend_data() -> List[DefaultOrderedDict]:
     return [defs_row_text, poss_vals_row_text]
 
 
+# @cached_items
 @db_session
-@cached_items
 def get_ordered_items_and_filter_counts(
     filters: dict = {},
     search_text: str = None,
