@@ -25,7 +25,7 @@ Written by Mike Van Maele (mvanmaele@talusanalytics.com)
 
 3.  **Install packages**
 
-    - If using `pipenv` do `pipenv install --python=3.7.13 --dev --ignore-pipfile` to install Python packages and skip to the next section. Otherwise, continue.
+    - If using `pipenv` do `pipenv install --python=3.7 --dev --ignore-pipfile` to install Python packages and skip to the next section. Otherwise, continue.
     - Create a virtual environment for the project using `venv` (follow [this checklist](https://github.com/talus-analytics-bus/talus-intranet-react/wiki/Setting-up-a-Python-virtual-environment) for instructions if you're unsure).
     - Activate the virtual environment.
     - Install Python packages by doing `pip install -r requirements.txt`.
