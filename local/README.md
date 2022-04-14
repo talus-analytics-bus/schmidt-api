@@ -1,0 +1,1 @@
+This directory can contain any files you like and none will be tracked by git. This should include any shell scripts you write.
