@@ -184,9 +184,7 @@ class SheetSettings:
             bg_color_idx = bg_color_idx + 1
             bg_color = bg_colors[bg_color_idx % 2]
             for colname in row[colgroup]:
-                worksheet.write(
-                    irow, icol, colname, self.formats.colname(bg_color)
-                )
+                worksheet.write(irow, icol, colname, self.formats.colname(bg_color))
                 if self.type == "legend" and colname in (
                     "Funders",
                     "Sub-organization",
@@ -204,9 +202,7 @@ class SheetSettings:
                     "Date published",
                 ):
                     worksheet.set_column(icol, icol, 25)
-                elif self.type != "legend" and colname in (
-                    "Sortable date published"
-                ):
+                elif self.type != "legend" and colname in ("Sortable date published"):
                     worksheet.set_column(icol, icol, 30)
                 else:
                     worksheet.set_column(icol, icol, 50)
@@ -305,13 +301,11 @@ class SheetSettings:
             Description of returned object.
 
         """
-        self.write_logo(
-            worksheet, logo_fn, logo_offset, logo_stretch_correction, 115
-        )
+        self.write_logo(worksheet, logo_fn, logo_offset, logo_stretch_correction, 115)
         self.write_title(worksheet, title)
 
         today = date.today()
-        self.write_subtitle(worksheet, "Downloaded on " + str(today))
+        self.write_subtitle(worksheet, "Data as of " + str(today))
         self.write_intro_text(worksheet, intro_text)
 
     def write_logo(
