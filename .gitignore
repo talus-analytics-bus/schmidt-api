@@ -1,4 +1,3 @@
-
 # Elastic Beanstalk Files
 # .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
@@ -11,7 +10,7 @@ tmp/
 
 # Pipfile
 # Pipfile.lock
-Pipfile
+# Pipfile
 
 # Backup databases
 backup-*/
