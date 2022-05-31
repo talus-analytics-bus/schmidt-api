@@ -8,7 +8,7 @@ def dboptions(env: str):
 
     validate_preview_or_prod(env)
 
-    def inner(func):
+    def wrapper(func):
         ops = [
             click.option(
                 "--username",
@@ -36,7 +36,7 @@ def dboptions(env: str):
             func = op(func)
         return func
 
-    return inner
+    return wrapper
 
 
 def validate_preview_or_prod(env: str):
