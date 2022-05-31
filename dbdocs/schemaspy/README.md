@@ -1,0 +1,2 @@
+# [SchemaSpy](https://schemaspy.org/) runtime
+This directory contains a JAR file for the SchemaSpy runtime. Version 6.1 is known to work with the PostgreSQL JDBC driver `postgresql-42.3.5` and Java 8. You can download the latest SchemaSpy runtime [online](https://schemaspy.org/).

@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<database name="schmidt" schema="public" type="PostgreSQL - 12.8">
+   <sequences>
+      <sequence increment="1" name="author_id_seq" startValue="1"/>
+      <sequence increment="1" name="event_id_seq" startValue="1"/>
+      <sequence increment="1" name="file_id_seq" startValue="1"/>
+      <sequence increment="1" name="funder_id_seq" startValue="1"/>
+      <sequence increment="1" name="glossary_id_seq" startValue="1"/>
+      <sequence increment="1" name="item_id_seq" startValue="1"/>
+      <sequence increment="1" name="optionset_id_seq" startValue="1"/>
+   </sequences>
+   <tables>
+      <table name="author" numRows="381" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('author_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4">
+            <child column="author" foreignKey="fk_authors_to_items__author" implied="false" onDeleteCascade="false" schema="public" table="authors_to_items"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="type_of_authoring_organization" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="authoring_organization" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="3" name="international_national" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="4" name="if_national_country_of_authoring_org" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="5" name="if_national_iso2_of_authoring_org" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="6" name="acronym" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="author_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+      </table>
+      <table name="authors_to_items" numRows="2850" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="author" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_authors_to_items__author" implied="false" onDeleteCascade="false" schema="public" table="author"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="item" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_authors_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <primaryKey column="author" sequenceNumberInPK="1"/>
+         <primaryKey column="item" sequenceNumberInPK="2"/>
+         <index name="authors_to_items_pkey" unique="true">
+            <column ascending="true" name="author"/>
+            <column ascending="true" name="item"/>
+         </index>
+         <index name="idx_authors_to_items" unique="false">
+            <column ascending="true" name="item"/>
+         </index>
+      </table>
+      <table name="covid_tags_to_items" numRows="4810" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="covidtag" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_covid_tags_to_items__covidtag" implied="false" onDeleteCascade="false" schema="public" table="optionset"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="item" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_covid_tags_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <primaryKey column="covidtag" sequenceNumberInPK="1"/>
+         <primaryKey column="item" sequenceNumberInPK="2"/>
+         <index name="covid_tags_to_items_pkey" unique="true">
+            <column ascending="true" name="covidtag"/>
+            <column ascending="true" name="item"/>
+         </index>
+         <index name="idx_covid_tags_to_items" unique="false">
+            <column ascending="true" name="item"/>
+         </index>
+      </table>
+      <table name="covid_topics_to_items" numRows="0" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="covidtopic" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_covid_topics_to_items__covidtopic" implied="false" onDeleteCascade="false" schema="public" table="optionset"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="item" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_covid_topics_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <primaryKey column="covidtopic" sequenceNumberInPK="1"/>
+         <primaryKey column="item" sequenceNumberInPK="2"/>
+         <index name="covid_topics_to_items_pkey" unique="true">
+            <column ascending="true" name="covidtopic"/>
+            <column ascending="true" name="item"/>
+         </index>
+         <index name="idx_covid_topics_to_items" unique="false">
+            <column ascending="true" name="item"/>
+         </index>
+      </table>
+      <table name="event" numRows="10" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('event_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4">
+            <child column="event" foreignKey="fk_events_to_items__event" implied="false" onDeleteCascade="false" schema="public" table="events_to_items"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="master_id" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="name" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="event_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+      </table>
+      <table name="events_to_items" numRows="1091" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="event" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_events_to_items__event" implied="false" onDeleteCascade="false" schema="public" table="event"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="item" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_events_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <primaryKey column="event" sequenceNumberInPK="1"/>
+         <primaryKey column="item" sequenceNumberInPK="2"/>
+         <index name="events_to_items_pkey" unique="true">
+            <column ascending="true" name="event"/>
+            <column ascending="true" name="item"/>
+         </index>
+         <index name="idx_events_to_items" unique="false">
+            <column ascending="true" name="item"/>
+         </index>
+      </table>
+      <table name="file" numRows="2735" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('file_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4">
+            <child column="file" foreignKey="fk_files_to_items__file" implied="false" onDeleteCascade="false" schema="public" table="files_to_items"/>
+            <child column="file" foreignKey="fk_related_files_to_items__file" implied="false" onDeleteCascade="false" schema="public" table="related_files_to_items"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="source_permalink" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="s3_permalink" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="3" name="filename" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="4" name="s3_filename" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="5" name="mime_type" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="6" name="source_thumbnail_permalink" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="7" name="s3_thumbnail_permalink" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="8" name="num_bytes" nullable="true" remarks="" size="10" type="int4" typeCode="4"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="9" name="scraped_text" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="false" digits="0" id="10" name="exclude_from_site" nullable="false" remarks="" size="1" type="bool" typeCode="-7"/>
+         <column autoUpdated="false" defaultValue="false" digits="0" id="11" name="has_thumb" nullable="true" remarks="" size="1" type="bool" typeCode="-7"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="file_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+      </table>
+      <table name="files_to_items" numRows="1994" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="file" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_files_to_items__file" implied="false" onDeleteCascade="false" schema="public" table="file"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="item" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_files_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <primaryKey column="file" sequenceNumberInPK="1"/>
+         <primaryKey column="item" sequenceNumberInPK="2"/>
+         <index name="files_to_items_pkey" unique="true">
+            <column ascending="true" name="file"/>
+            <column ascending="true" name="item"/>
+         </index>
+         <index name="idx_files_to_items" unique="false">
+            <column ascending="true" name="item"/>
+         </index>
+      </table>
+      <table name="funder" numRows="341" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('funder_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4">
+            <child column="funder" foreignKey="fk_funders_to_items__funder" implied="false" onDeleteCascade="false" schema="public" table="funders_to_items"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="name" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="funder_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+      </table>
+      <table name="funders_to_items" numRows="3210" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="funder" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_funders_to_items__funder" implied="false" onDeleteCascade="false" schema="public" table="funder"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="item" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_funders_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <primaryKey column="funder" sequenceNumberInPK="1"/>
+         <primaryKey column="item" sequenceNumberInPK="2"/>
+         <index name="funders_to_items_pkey" unique="true">
+            <column ascending="true" name="funder"/>
+            <column ascending="true" name="item"/>
+         </index>
+         <index name="idx_funders_to_items" unique="false">
+            <column ascending="true" name="item"/>
+         </index>
+      </table>
+      <table name="glossary" numRows="54" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('glossary_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="colname" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="term" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="3" name="definition" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="glossary_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+      </table>
+      <table name="item" numRows="2352" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('item_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4">
+            <child column="item" foreignKey="fk_authors_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="authors_to_items"/>
+            <child column="item" foreignKey="fk_covid_tags_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="covid_tags_to_items"/>
+            <child column="item" foreignKey="fk_covid_topics_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="covid_topics_to_items"/>
+            <child column="item" foreignKey="fk_events_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="events_to_items"/>
+            <child column="item" foreignKey="fk_files_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="files_to_items"/>
+            <child column="item" foreignKey="fk_funders_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="funders_to_items"/>
+            <child column="item" foreignKey="fk_items_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="items_to_items"/>
+            <child column="item_2" foreignKey="fk_items_to_items__item_2" implied="false" onDeleteCascade="false" schema="public" table="items_to_items"/>
+            <child column="item" foreignKey="fk_key_topics_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="key_topics_to_items"/>
+            <child column="item" foreignKey="fk_related_files_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="related_files_to_items"/>
+            <child column="item" foreignKey="fk_tags_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="tags_to_items"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="internal_date_of_initial_entry" nullable="true" remarks="" size="13" type="date" typeCode="91"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="date" nullable="true" remarks="" size="13" type="date" typeCode="91"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="3" name="date_type" nullable="true" remarks="" size="10" type="int4" typeCode="4"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="4" name="type_of_record" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="'Untitled'::text" digits="0" id="5" name="title" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="6" name="description" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="7" name="sub_organizations" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="8" name="link" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="9" name="internal_research_note" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="10" name="ra_coder_initials" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="11" name="final_review" nullable="true" remarks="" size="1" type="bool" typeCode="-7"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="12" name="search_text" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="13" name="file_search_text" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="14" name="authoring_organization_has_governance_authority" nullable="true" remarks="" size="1" type="bool" typeCode="-7"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="15" name="source_id" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="16" name="exclude_pdf_from_site" nullable="false" remarks="" size="1" type="bool" typeCode="-7"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="17" name="is_covid_commission_doc" nullable="false" remarks="" size="1" type="bool" typeCode="-7"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="18" name="field_relationship" nullable="true" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_item__field_relationship" implied="false" onDeleteCascade="false" schema="public" table="optionset"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="19" name="geo_specificity" nullable="true" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_item__geo_specificity" implied="false" onDeleteCascade="false" schema="public" table="optionset"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="20" name="related_description" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="item_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+         <index name="idx_item__field_relationship" unique="false">
+            <column ascending="true" name="field_relationship"/>
+         </index>
+         <index name="idx_item__geo_specificity" unique="false">
+            <column ascending="true" name="geo_specificity"/>
+         </index>
+      </table>
+      <table name="items_to_items" numRows="1288" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="item" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_items_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="item_2" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_items_to_items__item_2" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <primaryKey column="item" sequenceNumberInPK="1"/>
+         <primaryKey column="item_2" sequenceNumberInPK="2"/>
+         <index name="items_to_items_pkey" unique="true">
+            <column ascending="true" name="item"/>
+            <column ascending="true" name="item_2"/>
+         </index>
+         <index name="idx_items_to_items" unique="false">
+            <column ascending="true" name="item_2"/>
+         </index>
+      </table>
+      <table name="key_topics_to_items" numRows="2352" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="item" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_key_topics_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="keytopic" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_key_topics_to_items__keytopic" implied="false" onDeleteCascade="false" schema="public" table="optionset"/>
+         </column>
+         <primaryKey column="item" sequenceNumberInPK="1"/>
+         <primaryKey column="keytopic" sequenceNumberInPK="2"/>
+         <index name="key_topics_to_items_pkey" unique="true">
+            <column ascending="true" name="item"/>
+            <column ascending="true" name="keytopic"/>
+         </index>
+         <index name="idx_key_topics_to_items" unique="false">
+            <column ascending="true" name="keytopic"/>
+         </index>
+      </table>
+      <table name="metadata" numRows="33" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="field" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="source_name" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="17" id="2" name="order" nullable="false" remarks="" size="17" type="float8" typeCode="8"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="3" name="display_name" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="4" name="colgroup" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="5" name="definition" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="6" name="possible_values" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="7" name="notes" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="8" name="export" nullable="false" remarks="" size="1" type="bool" typeCode="-7"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="9" name="entity_name" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="10" name="linked_entity_name" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="11" name="type" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="12" name="definition_short" nullable="true" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <primaryKey column="entity_name" sequenceNumberInPK="1"/>
+         <primaryKey column="linked_entity_name" sequenceNumberInPK="2"/>
+         <primaryKey column="field" sequenceNumberInPK="3"/>
+         <index name="metadata_pkey" unique="true">
+            <column ascending="true" name="entity_name"/>
+            <column ascending="true" name="linked_entity_name"/>
+            <column ascending="true" name="field"/>
+         </index>
+      </table>
+      <table name="optionset" numRows="47" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="true" defaultValue="nextval('optionset_id_seq'::regclass)" digits="0" id="0" name="id" nullable="false" remarks="" size="10" type="serial" typeCode="4">
+            <child column="covidtag" foreignKey="fk_covid_tags_to_items__covidtag" implied="false" onDeleteCascade="false" schema="public" table="covid_tags_to_items"/>
+            <child column="covidtopic" foreignKey="fk_covid_topics_to_items__covidtopic" implied="false" onDeleteCascade="false" schema="public" table="covid_topics_to_items"/>
+            <child column="field_relationship" foreignKey="fk_item__field_relationship" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+            <child column="geo_specificity" foreignKey="fk_item__geo_specificity" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+            <child column="keytopic" foreignKey="fk_key_topics_to_items__keytopic" implied="false" onDeleteCascade="false" schema="public" table="key_topics_to_items"/>
+            <child column="tag" foreignKey="fk_tags_to_items__tag" implied="false" onDeleteCascade="false" schema="public" table="tags_to_items"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="name" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="2" name="classtype" nullable="false" remarks="" size="2147483647" type="text" typeCode="12"/>
+         <primaryKey column="id" sequenceNumberInPK="1"/>
+         <index name="optionset_pkey" unique="true">
+            <column ascending="true" name="id"/>
+         </index>
+      </table>
+      <table name="related_files_to_items" numRows="115" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="file" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_related_files_to_items__file" implied="false" onDeleteCascade="false" schema="public" table="file"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="item" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_related_files_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <primaryKey column="file" sequenceNumberInPK="1"/>
+         <primaryKey column="item" sequenceNumberInPK="2"/>
+         <index name="related_files_to_items_pkey" unique="true">
+            <column ascending="true" name="file"/>
+            <column ascending="true" name="item"/>
+         </index>
+         <index name="idx_related_files_to_items" unique="false">
+            <column ascending="true" name="item"/>
+         </index>
+      </table>
+      <table name="tags_to_items" numRows="0" remarks="" schema="public" type="TABLE">
+         <column autoUpdated="false" defaultValue="null" digits="0" id="0" name="item" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_tags_to_items__item" implied="false" onDeleteCascade="false" schema="public" table="item"/>
+         </column>
+         <column autoUpdated="false" defaultValue="null" digits="0" id="1" name="tag" nullable="false" remarks="" size="10" type="int4" typeCode="4">
+            <parent column="id" foreignKey="fk_tags_to_items__tag" implied="false" onDeleteCascade="false" schema="public" table="optionset"/>
+         </column>
+         <primaryKey column="item" sequenceNumberInPK="1"/>
+         <primaryKey column="tag" sequenceNumberInPK="2"/>
+         <index name="tags_to_items_pkey" unique="true">
+            <column ascending="true" name="item"/>
+            <column ascending="true" name="tag"/>
+         </index>
+         <index name="idx_tags_to_items" unique="false">
+            <column ascending="true" name="tag"/>
+         </index>
+      </table>
+   </tables>
+</database>

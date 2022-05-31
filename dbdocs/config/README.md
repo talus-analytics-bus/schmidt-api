@@ -1,0 +1,2 @@
+# SchemaSpy configuration template and file
+Create a file `config.file` from the provided `config-template.file`, filling in all information marked `REDACTED`. **Note: Never track your `config.file` or other sensitive info in git**.
