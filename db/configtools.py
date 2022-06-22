@@ -112,6 +112,7 @@ def load_db_config():
         get_secret(secret_name=(os.environ.get("SECRET_NAME", "schmidt_rds_secret")))
     )
 
+    secret['database'] = secret['dbInstanceIdentifier']
     # overwrite secret params with env params
     overwrite_env_with_secret: bool = all(
         env_params[k] in (None, "")
