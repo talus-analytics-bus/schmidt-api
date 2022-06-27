@@ -10,16 +10,17 @@ Written by Mike Van Maele (mvanmaele@talusanalytics.com)
 
 
 
-2.  **Create a config.ini file.**
+2.  **Create a `.env` file.**
 
-    Create a file `config.ini` in the root directory containing information to connect to your local database, similar to the following:
+    Create a file `.env` in the root directory containing information to connect to your local database, similar to the following:
 
     ```
-    [DEFAULT]
-    username=[YOUR_LOCAL_PG_USERNAME]
+    username=[local postgres username]
     host=localhost
-    password=[YOUR_LOCAL_PG_PASS]
+    password=
     database=schmidt-local
+    AIRTABLE_API_KEY=[your key]
+    AIRTABLE_BASE_ID=appLd31oBE5L3Q3cs
     ```
 
 
