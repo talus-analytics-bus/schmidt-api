@@ -35,3 +35,6 @@ Written by Mike Van Maele (mvanmaele@talusanalytics.com)
 4. **Start API server**
 
     Do `pipenv run python application.py` from the project root directory. Check `localhost:5002` for the API server.
+    
+    
+Data update checklist [can be found here](https://github.com/talus-analytics-bus/talus-intranet-react/wiki/Health-Security-Net-data-update-checklist)
